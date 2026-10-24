@@ -250,7 +250,7 @@ ${(LAYOUT.sidebar || []).length ? `<div class="page-grid"><div class="main-col">
 ${LAYOUT.footer ? `<footer class="site-footer">
   <div class="wrap">
     <p>&copy; ${BUILD_TIME.getFullYear()} ${esc(site.author)} · 自制引擎驱动 · <a href="/atom.xml">RSS</a></p>
-    <p><a href="https://github.com/${esc(site.author)}" target="_blank" rel="noopener">GitHub</a></p>
+    <p><a href="https://github.com/${esc(site.author)}" target="_blank" rel="noopener">GitHub</a> · <a href="/guide/">帮助</a> · <a href="/admin/">✍️ 写作</a></p>
   </div>
 </footer>` : ''}
 <button id="backtop" title="回到顶部">&uarr;</button>

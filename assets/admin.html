@@ -68,6 +68,7 @@
   }
   .token-bar code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
   .hidden { display: none !important; }
+  .side-hint { margin: 10px 8px; font-size: 13px; color: var(--text-light); line-height: 1.9; }
   /* ---- 编辑器 v2：工具栏 / 模式 / 专注 ---- */
   .wrap { max-width: 1180px; } /* 后台需要更宽的工作区 */
   .ed-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -500,7 +501,10 @@
     if (LOCAL) {
       posts = await (await fetch('/api/list')).json();
     } else {
-      if (!TOKEN) return;
+      if (!TOKEN) {
+        box.innerHTML = '<h3>文章列表</h3><p class="side-hint">未连接 GitHub，暂时读不到文章。<br>在上方粘贴令牌点「连接」后，<br>你的文章会显示在这里。</p>';
+        return;
+      }
       const files = await gh('GET', `/repos/${OWNER}/${REPO}/contents/posts`);
       posts = files.filter(f => f.name.endsWith('.md')).map(f => {
         const { data } = parseFM(b64d(f.content));
