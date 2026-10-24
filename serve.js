@@ -130,6 +130,7 @@ http.createServer(async (req, res) => {
           `date: ${b.date || md.fmtDateTime(new Date())}`,
           b.categories ? `categories: ${String(b.categories).replace(/\n/g, ' ')}` : '',
           tags ? `tags: [${tags}]` : '',
+          b.sticky ? 'sticky: true' : '',
           b.draft ? 'draft: true' : '',
           '---', ''
         ].filter(Boolean).join('\n');

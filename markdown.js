@@ -128,11 +128,14 @@ function renderMarkdown(src) {
       continue;
     }
 
-    // 标题
+    // 标题（带锚点 id，供文章目录跳转）
     const h = line.match(/^(#{1,6})\s+(.*)$/);
     if (h) {
       const lvl = h[1].length;
-      html += `<h${lvl}>${inline(h[2].replace(/\s*#+\s*$/, ''))}</h${lvl}>\n`;
+      const textInner = h[2].replace(/\s*#+\s*$/, '');
+      const id = 'h-' + inline(textInner).replace(/<[^>]+>/g, '')
+        .toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '');
+      html += `<h${lvl} id="${esc(id)}">${inline(textInner)}</h${lvl}>\n`;
       i++;
       continue;
     }

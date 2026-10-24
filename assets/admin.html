@@ -114,6 +114,7 @@
         <div class="fields2">
           <input type="text" id="f-cats" placeholder="分类，如：随笔">
           <input type="text" id="f-tags" placeholder="标签，逗号分隔，如：教程, LaTeX">
+          <span class="checkbox-line"><input type="checkbox" id="f-sticky"> 置顶</span>
           <span class="checkbox-line"><input type="checkbox" id="f-draft"> 草稿（不发布）</span>
         </div>
       </div>
@@ -187,6 +188,7 @@
       'date: ' + ($('f-date').value.trim() || fmtDateTime(new Date())),
       $('f-cats').value.trim() ? 'categories: ' + $('f-cats').value.trim() : '',
       tags ? 'tags: [' + tags + ']' : '',
+      $('f-sticky').checked ? 'sticky: true' : '',
       $('f-draft').checked ? 'draft: true' : '',
       '---', ''
     ].filter(Boolean).join('\n') + '\n' + $('body').value.replace(/\r\n/g, '\n');
@@ -234,6 +236,7 @@
     $('f-date').value = data.date || '';
     $('f-cats').value = data.categories || '';
     $('f-tags').value = (data.tags || '').replace(/^\[|\]$/g, '');
+    $('f-sticky').checked = data.sticky === 'true' || data.top === 'true';
     $('f-draft').checked = data.draft === 'true';
     $('body').value = body;
     dirty = false;
@@ -267,7 +270,7 @@
     if (LOCAL) {
       const r = await fetch('/api/save', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: slug, title: $('f-title').value.trim(), date: $('f-date').value.trim(), categories: $('f-cats').value.trim(), tags: $('f-tags').value.trim(), draft: $('f-draft').checked, body: $('body').value })
+        body: JSON.stringify({ file: slug, title: $('f-title').value.trim(), date: $('f-date').value.trim(), categories: $('f-cats').value.trim(), tags: $('f-tags').value.trim(), sticky: $('f-sticky').checked, draft: $('f-draft').checked, body: $('body').value })
       });
       const j = await r.json();
       if (!j.ok) { status('保存失败：' + j.error, 'err'); return; }

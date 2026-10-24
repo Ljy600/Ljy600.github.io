@@ -39,6 +39,16 @@ function permalink(date, slug) {
   return `/${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${slug}/`;
 }
 
+/* ---------- 主题色辅助：hex 提亮 / 透明化 ---------- */
+
+function hexRgb(hex) {
+  let h = String(hex).replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+const lighten = (hex, t) => 'rgb(' + hexRgb(hex).map(v => Math.round(v + (255 - v) * t)).join(',') + ')';
+const rgba = (hex, a) => 'rgba(' + hexRgb(hex).join(',') + ',' + a + ')';
+
 /* ---------- 文章加载 ---------- */
 
 function stripTags(html) {
@@ -68,10 +78,12 @@ function loadPosts() {
       permalink: permalink(date, slug),
       fullHtml,
       excerpt: excerpt.length > 160 ? excerpt.slice(0, 160) + '……' : excerpt,
-      readingTime: Math.max(1, Math.round(fullText.length / 400)) // 中文约 400 字/分钟
+      readingTime: Math.max(1, Math.round(fullText.length / 400)), // 中文约 400 字/分钟
+      sticky: data.sticky === 'true' || data.top === 'true' // 置顶
     });
   }
-  posts.sort((a, b) => b.date - a.date);
+  // 置顶文章排最前（置顶内部仍按时间倒序），其余按时间倒序
+  posts.sort((a, b) => (b.sticky - a.sticky) || (b.date - a.date));
   return posts;
 }
 
@@ -88,6 +100,16 @@ function loadPages() {
   return pages;
 }
 
+/* ---------- 文章目录（h2 数量 ≥3 时生成） ---------- */
+
+function buildToc(html) {
+  const items = [...html.matchAll(/<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g)]
+    .map(m => ({ id: m[1], text: m[2].replace(/<[^>]+>/g, '').trim() }));
+  if (items.length < 3) return '';
+  return `<details class="post-toc"><summary>目录</summary><ul>${items
+    .map(t => `<li><a href="#${t.id}">${esc(t.text)}</a></li>`).join('')}</ul></details>\n`;
+}
+
 /* ---------- 模板 ---------- */
 
 const ASSET_V = BUILD_TIME.getTime();
@@ -95,6 +117,19 @@ const ASSET_V = BUILD_TIME.getTime();
 function layout({ title, desc = site.description, body, path: cur = '/', bodyClass = '', progress = false }) {
   const nav = site.nav.map(n =>
     `<a href="${n.href}"${n.href === cur ? ' class="active"' : ''}>${n.label}</a>`).join('');
+
+  // 站长级主题配置（site.json → theme）：默认主题色 / 内容宽度
+  const themeCfg = site.theme || {};
+  const ownerVars = [];
+  if (themeCfg.accent && /^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(themeCfg.accent)) {
+    const hex = themeCfg.accent.startsWith('#') ? themeCfg.accent : '#' + themeCfg.accent;
+    ownerVars.push(`--accent:${hex}`, `--accent-2:${lighten(hex, 0.22)}`,
+      `--accent-grad:linear-gradient(120deg,${hex},${lighten(hex, 0.22)})`, `--accent-weak:${rgba(hex, 0.09)}`);
+  }
+  if ({ s: 1, m: 1, l: 1 }[themeCfg.width]) ownerVars.push(`--content-width:${{ s: '680px', m: '768px', l: '920px' }[themeCfg.width]}`);
+  if ({ s: 1, m: 1, l: 1 }[themeCfg.font]) ownerVars.push(`--post-font:${{ s: '15.5px', m: '16.5px', l: '18px' }[themeCfg.font]}`);
+  const ownerStyle = ownerVars.length ? `<style>:root{${ownerVars.join(';')}}</style>\n` : '';
+
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -111,8 +146,8 @@ function layout({ title, desc = site.description, body, path: cur = '/', bodyCla
 MathJax.Hub.Config({ TeX: { extensions: ["color.js"] }, showProcessingMessages: false });
 </script>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-<link rel="stylesheet" media="(prefers-color-scheme: light)" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github.min.css">
-<link rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github-dark.min.css">
+${ownerStyle}<link id="hljs-light" rel="stylesheet" media="(prefers-color-scheme: light)" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github.min.css">
+<link id="hljs-dark" rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github-dark.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/languages/latex.min.js"></script>
 <script>window.addEventListener('load',function(){
@@ -136,7 +171,30 @@ MathJax.Hub.Config({ TeX: { extensions: ["color.js"] }, showProcessingMessages: 
 ${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
   <div class="wrap header-inner">
     <a class="site-title" href="/">${esc(site.title)}<span class="site-sub">${esc(site.subtitle)}</span></a>
-    <nav class="site-nav">${nav}</nav>
+    <nav class="site-nav">${nav}<button type="button" class="ui-toggle" id="ui-toggle" title="外观设置" aria-label="外观设置">⚙</button>
+<div class="ui-panel" id="ui-panel" hidden>
+  <h3>外观设置</h3>
+  <p class="ui-hint">仅保存在你自己的浏览器里</p>
+  <div class="ui-row"><label>主题色</label><div class="swatches">
+    <button type="button" class="swatch" data-accent="default" title="默认青" style="background:#0d7377"></button>
+    <button type="button" class="swatch" data-accent="blue" title="蓝" style="background:#2563eb"></button>
+    <button type="button" class="swatch" data-accent="violet" title="紫" style="background:#7c3aed"></button>
+    <button type="button" class="swatch" data-accent="rose" title="玫红" style="background:#e11d48"></button>
+    <button type="button" class="swatch" data-accent="amber" title="琥珀" style="background:#d97706"></button>
+    <button type="button" class="swatch" data-accent="green" title="绿" style="background:#16a34a"></button>
+  </div></div>
+  <div class="ui-row"><label>内容宽度</label><div class="seg" data-key="width">
+    <button type="button" data-val="s">紧凑</button><button type="button" data-val="m">适中</button><button type="button" data-val="l">宽敞</button>
+  </div></div>
+  <div class="ui-row"><label>正文字号</label><div class="seg" data-key="font">
+    <button type="button" data-val="s">小</button><button type="button" data-val="m">中</button><button type="button" data-val="l">大</button>
+  </div></div>
+  <div class="ui-row"><label>深色模式</label><div class="seg" data-key="theme">
+    <button type="button" data-val="auto">自动</button><button type="button" data-val="light">浅色</button><button type="button" data-val="dark">深色</button>
+  </div></div>
+  <button type="button" class="ui-reset" id="ui-reset">恢复默认</button>
+</div>
+</nav>
   </div>
 </header>
 <main class="wrap">
@@ -158,15 +216,66 @@ window.addEventListener('scroll',function(){
 },{passive:true});
 bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
 </script>
+<script>
+(function(){
+  var ACC={default:'#0d7377',blue:'#2563eb',violet:'#7c3aed',rose:'#e11d48',amber:'#d97706',green:'#16a34a'};
+  var WIDTH={s:'680px',m:'768px',l:'920px'},FONT={s:'15.5px',m:'16.5px',l:'18px'};
+  var P={theme:'auto',accent:'default',width:'m',font:'m'};
+  try{var s=JSON.parse(localStorage.getItem('blog_ui_prefs')||'{}');Object.keys(P).forEach(function(k){if(s[k])P[k]=s[k]});}catch(_){}
+  var root=document.documentElement;
+  function hx(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(function(c){return c+c}).join('');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+  function lighten(h,t){return 'rgb('+hx(h).map(function(v){return Math.round(v+(255-v)*t)}).join(',')+')';}
+  function rgba(h,a){return 'rgba('+hx(h).join(',')+','+a+')';}
+  function apply(){
+    if(P.theme==='auto')root.removeAttribute('data-theme');else root.setAttribute('data-theme',P.theme);
+    if(P.accent==='default'){['--accent','--accent-2','--accent-grad','--accent-weak'].forEach(function(k){root.style.removeProperty(k)});}
+    else{var hex=ACC[P.accent]||ACC.default;
+      root.style.setProperty('--accent',hex);
+      root.style.setProperty('--accent-2',lighten(hex,0.22));
+      root.style.setProperty('--accent-grad','linear-gradient(120deg,'+hex+','+lighten(hex,0.22)+')');
+      root.style.setProperty('--accent-weak',rgba(hex,0.09));}
+    root.style.setProperty('--content-width',WIDTH[P.width]||WIDTH.m);
+    root.style.setProperty('--post-font',FONT[P.font]||FONT.m);
+    var dark=P.theme==='dark'||(P.theme!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var l=document.getElementById('hljs-light'),d=document.getElementById('hljs-dark');
+    if(l)l.disabled=dark;if(d)d.disabled=!dark;
+    var panel=document.getElementById('ui-panel');
+    if(panel){
+      panel.querySelectorAll('.seg').forEach(function(seg){
+        seg.querySelectorAll('button').forEach(function(b){b.classList.toggle('active',P[seg.getAttribute('data-key')]===b.getAttribute('data-val'))});
+      });
+      panel.querySelectorAll('.swatch').forEach(function(sw){sw.classList.toggle('active',P.accent===sw.getAttribute('data-accent'))});
+    }
+  }
+  function save(){try{localStorage.setItem('blog_ui_prefs',JSON.stringify(P))}catch(_){}apply();}
+  var toggle=document.getElementById('ui-toggle'),panel=document.getElementById('ui-panel');
+  if(toggle&&panel){
+    toggle.addEventListener('click',function(e){e.stopPropagation();panel.hidden=!panel.hidden;});
+    panel.addEventListener('click',function(e){e.stopPropagation();});
+    panel.querySelectorAll('.seg button').forEach(function(b){b.addEventListener('click',function(){
+      P[b.closest('.seg').getAttribute('data-key')]=b.getAttribute('data-val');save();
+    })});
+    panel.querySelectorAll('.swatch').forEach(function(sw){sw.addEventListener('click',function(){
+      P.accent=sw.getAttribute('data-accent');save();
+    })});
+    var reset=document.getElementById('ui-reset');
+    if(reset)reset.addEventListener('click',function(){P={theme:'auto',accent:'default',width:'m',font:'m'};save();});
+    document.addEventListener('click',function(){panel.hidden=true;});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')panel.hidden=true;});
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){apply();});
+  apply();
+})();
+</script>
 </body>
 </html>`;
 }
 
 function postItem(p, withExcerpt) {
-  return `<article class="post-item">
+  return `<article class="post-item${p.sticky ? ' pinned' : ''}">
   <div class="post-date">${p.dateStr}</div>
   <div class="post-main">
-    <h2 class="post-title"><a href="${p.permalink}">${esc(p.title)}</a></h2>
+    <h2 class="post-title"><a href="${p.permalink}">${esc(p.title)}</a>${p.sticky ? '<span class="pin-badge">置顶</span>' : ''}</h2>
     ${withExcerpt ? `<p class="post-excerpt">${esc(p.excerpt)} <a class="readmore" href="${p.permalink}">阅读全文 &rarr;</a></p>` : ''}
     <div class="post-meta">${p.category ? `<span class="cat">${esc(p.category)}</span>` : ''}${p.tags.map(t => `<a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
   </div>
@@ -183,20 +292,20 @@ function build() {
   const posts = loadPosts();
   const pages = loadPages();
 
-  // 首页（Hero + 文章列表）
+  // 首页（Hero 可通过 site.json → theme.hero:false 关闭）
   const tagCount = {};
   posts.forEach(p => p.tags.forEach(t => (tagCount[t] = (tagCount[t] || 0) + 1)));
+  const heroOn = !(site.theme && site.theme.hero === false);
   writeFile('index.html', layout({
     title: site.title,
     desc: site.description,
     path: '/',
-    body: `<section class="hero">
+    body: `${heroOn ? `<section class="hero">
   <div class="hero-blob b1"></div><div class="hero-blob b2"></div>
   <h1 class="hero-title">${esc(site.title)}</h1>
   <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
   <p class="hero-meta">${posts.length} 篇文章<span class="dot"></span>${Object.keys(tagCount).length} 个标签<span class="dot"></span>持续更新中</p>
-</section>
-<section class="post-list">${posts.map(p => postItem(p, true)).join('\n')}</section>`
+</section>\n` : ''}<section class="post-list">${posts.map(p => postItem(p, true)).join('\n')}</section>`
   }));
 
   // 文章页（含上一篇/下一篇、阅读时长、进度条）
@@ -213,10 +322,10 @@ function build() {
       progress: true,
       body: `<article class="post-full">
   <header class="post-head">
-    <h1>${esc(p.title)}</h1>
+    <h1>${esc(p.title)}${p.sticky ? '<span class="pin-badge">置顶</span>' : ''}</h1>
     <div class="post-meta-line"><time>${p.dateStr}</time>${p.category ? ` · ${esc(p.category)}` : ''} · 约 ${p.readingTime} 分钟${p.tags.map(t => ` · <a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
   </header>
-  <div class="post-body">${p.fullHtml}</div>
+  ${buildToc(p.fullHtml)}<div class="post-body">${p.fullHtml}</div>
   ${nav.length ? `<nav class="post-nav">${nav.join('')}</nav>` : ''}
 </article>`
     }));
