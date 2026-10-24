@@ -68,6 +68,27 @@
   }
   .token-bar code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
   .hidden { display: none !important; }
+  /* ---- 编辑器 v2：工具栏 / 模式 / 专注 ---- */
+  .wrap { max-width: 1180px; } /* 后台需要更宽的工作区 */
+  .ed-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+  .toolbar button {
+    border: 1px solid var(--border); background: var(--bg-card); color: var(--text);
+    border-radius: 6px; font-size: 12.5px; padding: 3px 9px; cursor: pointer; font-family: inherit;
+  }
+  .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+  .viewseg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex: 0 0 auto; }
+  .viewseg button { border: none; background: transparent; color: var(--text-light); font-size: 12.5px; padding: 4px 12px; cursor: pointer; font-family: inherit; }
+  .viewseg button + button { border-left: 1px solid var(--border); }
+  .viewseg button.active { background: var(--accent-grad); color: #fff; }
+  body[data-mode="edit"] .pane-preview { display: none; }
+  body[data-mode="preview"] .pane-edit { display: none; }
+  textarea#body.dragover { outline: 2px dashed var(--accent); outline-offset: -2px; }
+  body.zen .admin-bar, body.zen .side-list, body.zen #status, body.zen .editor > div:not(.panes) { display: none !important; }
+  body.zen .admin-main { display: block; }
+  body.zen .panes { flex-direction: column; }
+  body.zen textarea#body { min-height: 68vh; }
+  body.zen .pane-preview iframe { height: 55vh; }
   @media (max-width: 980px) {
     .admin-main { flex-direction: column; }
     .side-list { flex: none; width: 100%; max-height: 180px; }
@@ -122,8 +143,34 @@
       </div>
       <div class="panes">
         <div class="pane-edit">
-          <span class="label">正文（Markdown，支持 $公式$）<span id="wc" style="float:right;color:var(--text-light);font-weight:400"></span></span>
-          <textarea id="body" placeholder="# 在这里开始写作&#10;&#10;支持 Markdown：**粗体**、`代码`、列表、表格、代码块、$E=mc^2$……&#10;单独一行写 &lt;!--more--&gt; 可截断首页摘要。"></textarea>
+          <div class="ed-head">
+            <div class="toolbar" id="toolbar">
+              <button type="button" data-t="h2" title="标题">H2</button>
+              <button type="button" data-t="h3" title="小标题">H3</button>
+              <button type="button" data-t="bold" title="粗体 (Ctrl+B)"><b>B</b></button>
+              <button type="button" data-t="italic" title="斜体 (Ctrl+I)"><i>I</i></button>
+              <button type="button" data-t="code" title="行内代码">&`&</button>
+              <button type="button" data-t="codeblock" title="代码块">{ }</button>
+              <button type="button" data-t="link" title="链接 (Ctrl+K)">🔗</button>
+              <button type="button" data-t="img" title="图片：点击上传，也可直接粘贴/拖入编辑器">🖼</button>
+              <button type="button" data-t="quote" title="引用">&raquo;</button>
+              <button type="button" data-t="ul" title="无序列表">• 列表</button>
+              <button type="button" data-t="ol" title="有序列表">1. 列表</button>
+              <button type="button" data-t="table" title="表格">表格</button>
+              <button type="button" data-t="imath" title="行内公式">$x$</button>
+              <button type="button" data-t="bmath" title="公式块">∑ 公式块</button>
+              <button type="button" data-t="more" title="首页摘要截断">more</button>
+              <button type="button" data-t="hr" title="分隔线">―</button>
+            </div>
+            <div class="viewseg" id="viewseg">
+              <button type="button" data-m="edit">编辑</button>
+              <button type="button" data-m="split">分屏</button>
+              <button type="button" data-m="preview">预览</button>
+              <button type="button" id="btn-zen" title="专注模式（Esc 退出）">⛶</button>
+            </div>
+          </div>
+          <textarea id="body" placeholder="# 在这里开始写作&#10;&#10;支持 Markdown：**粗体**、`代码`、列表、表格、代码块、$E=mc^2$……&#10;图片可直接粘贴或拖进来，会自动上传。&#10;单独一行写 &lt;!--more--&gt; 可截断首页摘要。"></textarea>
+          <input type="file" id="img-file" accept="image/*" class="hidden">
         </div>
         <div class="pane-preview">
           <span class="label" style="padding:8px 12px 0;display:block">实时预览</span>
@@ -244,6 +291,152 @@
     const t = $('body').value.replace(/\s/g, '');
     $('wc').textContent = t ? `${t.length} 字 · 约 ${Math.max(1, Math.round(t.length / 400))} 分钟` : '';
   }
+
+  /* ---- 编辑器 v2：工具栏 / 快捷键 / 模式 / 图片上传 / 同步滚动 ---- */
+  function afterEdit() { dirty = true; updateWC(); clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 600); }
+  function insertAtCursor(text, cursorOffset) {
+    const el = $('body');
+    const s = el.selectionStart, e = el.selectionEnd;
+    el.value = el.value.slice(0, s) + text + el.value.slice(e);
+    const pos = s + (cursorOffset !== undefined ? cursorOffset : text.length);
+    el.selectionStart = el.selectionEnd = pos;
+    el.focus(); afterEdit();
+  }
+  function surroundSel(before, after, placeholder) {
+    const el = $('body');
+    const s = el.selectionStart, e = el.selectionEnd;
+    const sel = el.value.slice(s, e) || placeholder;
+    el.value = el.value.slice(0, s) + before + sel + after + el.value.slice(e);
+    el.selectionStart = s + before.length;
+    el.selectionEnd = s + before.length + sel.length;
+    el.focus(); afterEdit();
+  }
+  function prefixLines(fn) {
+    const el = $('body');
+    const v = el.value;
+    const s = el.selectionStart, e = el.selectionEnd;
+    const ls = v.lastIndexOf('\n', s - 1) + 1;
+    let le = v.indexOf('\n', e); if (le === -1) le = v.length;
+    const done = v.slice(ls, le).split('\n').map(fn);
+    el.value = v.slice(0, ls) + done.join('\n') + v.slice(le);
+    el.selectionStart = ls; el.selectionEnd = ls + done.join('\n').length;
+    el.focus(); afterEdit();
+  }
+  const TOOL = {
+    h2: () => prefixLines(l => l.startsWith('## ') ? l.slice(3) : '## ' + l.replace(/^#{1,6}\s+/, '')),
+    h3: () => prefixLines(l => l.startsWith('### ') ? l.slice(4) : '### ' + l.replace(/^#{1,6}\s+/, '')),
+    bold: () => surroundSel('**', '**', '粗体'),
+    italic: () => surroundSel('*', '*', '斜体'),
+    code: () => surroundSel('`', '`', '代码'),
+    codeblock: () => insertAtCursor('\n```js\n\n```\n', 6),
+    link: () => surroundSel('[', '](https://)', '链接文字'),
+    img: () => $('img-file').click(),
+    quote: () => prefixLines(l => l.startsWith('> ') ? l.slice(2) : '> ' + l),
+    ul: () => prefixLines(l => /^\s*[-*+]\s/.test(l) ? l.replace(/^(\s*)[-*+]\s/, '$1') : l.replace(/^(\s*)/, '$1- ')),
+    ol: () => prefixLines((l, i) => /^\s*\d+\.\s/.test(l) ? l.replace(/^(\s*)\d+\.\s/, '$1') : l.replace(/^(\s*)/, '$1' + (i + 1) + '. ')),
+    table: () => insertAtCursor('\n| 列1 | 列2 | 列3 |\n|---|---|---|\n|  |  |  |\n'),
+    imath: () => surroundSel('$', '$', 'E=mc^2'),
+    bmath: () => insertAtCursor('\n$$\n\\int_0^1 x^2 \\, dx = \\frac{1}{3}\n$$\n', 4),
+    more: () => insertAtCursor('\n<!--more-->\n'),
+    hr: () => insertAtCursor('\n---\n')
+  };
+  document.getElementById('toolbar').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b && TOOL[b.dataset.t]) TOOL[b.dataset.t]();
+  });
+
+  /* 图片上传：点击按钮选文件 / 粘贴 / 拖入编辑器 */
+  async function uploadImage(file) {
+    if (!/^image\//.test(file.type)) { status('只支持图片文件', 'err'); return; }
+    status('上传图片中：' + file.name + ' …');
+    const dataUrl = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error('读取失败'));
+      fr.readAsDataURL(file);
+    });
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    const name = 'img-' + Date.now() + '.' + ext;
+    try {
+      let url;
+      if (LOCAL) {
+        const r = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, b64: dataUrl }) });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error);
+        url = j.url;
+      } else {
+        if (!TOKEN) { showTokenBar('上传图片也需要先连接 GitHub'); return; }
+        const path = 'assets/uploads/' + name;
+        let sha;
+        try { sha = (await gh('GET', `/repos/${OWNER}/${REPO}/contents/${path}`)).sha; } catch (e) {}
+        await gh('PUT', `/repos/${OWNER}/${REPO}/contents/${path}`, { message: '上传图片 ' + name, content: dataUrl.split(',')[1], ...(sha ? { sha } : {}) });
+        url = '/' + path;
+      }
+      insertAtCursor(`\n![${file.name.replace(/\.[^.]+$/, '')}](${url})\n`);
+      status('✅ 图片已上传 ' + url + (LOCAL ? '，构建后可见' : '，构建后生效'), 'ok');
+    } catch (e) { status('图片上传失败：' + e.message, 'err'); }
+  }
+  $('img-file').addEventListener('change', e => { if (e.target.files[0]) uploadImage(e.target.files[0]); e.target.value = ''; });
+  const bodyEl = $('body');
+  bodyEl.addEventListener('paste', e => {
+    const f = [...(e.clipboardData.files || [])].find(f => /^image\//.test(f.type));
+    if (f) { e.preventDefault(); uploadImage(f); }
+  });
+  bodyEl.addEventListener('dragover', e => {
+    if ([...(e.dataTransfer.types || [])].includes('Files')) { e.preventDefault(); bodyEl.classList.add('dragover'); }
+  });
+  bodyEl.addEventListener('dragleave', () => bodyEl.classList.remove('dragover'));
+  bodyEl.addEventListener('drop', e => {
+    const f = [...(e.dataTransfer.files || [])].find(f => /^image\//.test(f.type));
+    if (f) { e.preventDefault(); bodyEl.classList.remove('dragover'); uploadImage(f); }
+  });
+
+  /* 快捷键与列表自动续行 */
+  bodyEl.addEventListener('keydown', e => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.shiftKey && !e.altKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'b') { e.preventDefault(); TOOL.bold(); return; }
+      if (k === 'i') { e.preventDefault(); TOOL.italic(); return; }
+      if (k === 'k') { e.preventDefault(); TOOL.link(); return; }
+    }
+    if (e.key === 'Tab') { e.preventDefault(); insertAtCursor('  '); return; }
+    if (e.key === 'Enter' && !e.shiftKey && !mod) {
+      const s = bodyEl.selectionStart;
+      if (s !== bodyEl.selectionEnd) return;
+      const ls = bodyEl.value.lastIndexOf('\n', s - 1) + 1;
+      const line = bodyEl.value.slice(ls, s);
+      const mUl = line.match(/^(\s*)([-*+])\s+(.*)$/);
+      const mOl = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+      if (mUl && mUl[3]) { e.preventDefault(); insertAtCursor('\n' + mUl[1] + mUl[2] + ' '); return; }
+      if (mOl && mOl[3]) { e.preventDefault(); insertAtCursor('\n' + mOl[1] + (+mOl[2] + 1) + '. '); return; }
+      if ((mUl && !mUl[3]) || (mOl && !mOl[3])) { // 空列表项回车 = 退出列表
+        e.preventDefault();
+        bodyEl.selectionStart = bodyEl.selectionEnd = ls;
+        afterEdit();
+      }
+    }
+  });
+
+  /* 编辑 / 分屏 / 预览 三模式 */
+  function setMode(m) {
+    document.body.dataset.mode = m;
+    try { localStorage.setItem('blog_editor_mode', m); } catch (e) {}
+    $('viewseg').querySelectorAll('button[data-m]').forEach(b => b.classList.toggle('active', b.dataset.m === m));
+  }
+  $('viewseg').addEventListener('click', e => { if (e.target.dataset.m) setMode(e.target.dataset.m); });
+
+  /* 专注模式 */
+  $('btn-zen').addEventListener('click', () => document.body.classList.toggle('zen'));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.body.classList.remove('zen'); });
+
+  /* 分屏时编辑区 ↔ 预览区同步滚动 */
+  bodyEl.addEventListener('scroll', () => {
+    if (document.body.dataset.mode !== 'split') return;
+    const d = $('preview').contentDocument;
+    if (!d || !d.documentElement) return;
+    const p = bodyEl.scrollTop / Math.max(1, bodyEl.scrollHeight - bodyEl.clientHeight);
+    d.documentElement.scrollTop = p * (d.documentElement.scrollHeight - d.documentElement.clientHeight);
+  }, { passive: true });
   const b64e = s => btoa(unescape(encodeURIComponent(s)));
   const b64d = s => decodeURIComponent(escape(atob(String(s).replace(/\n/g, ''))));
 
@@ -530,6 +723,7 @@ ${title ? `<header class="post-head"><h1>${mdEsc(title)}</h1></header>` : ''}
     $('btn-del').before(b);
   }
   newPost();
+  setMode((() => { try { return localStorage.getItem('blog_editor_mode') || 'split'; } catch (e) { return 'split'; } })());
   updateWC();
   tryRestoreAutosave();
   renderPreview();

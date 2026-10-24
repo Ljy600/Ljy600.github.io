@@ -95,10 +95,10 @@ function runScript(script, res) {
 
 /* ---------- 请求体读取 ---------- */
 
-function readBody(req) {
+function readBody(req, limit = 2e6) {
   return new Promise((resolve, reject) => {
     let buf = '';
-    req.on('data', d => { buf += d; if (buf.length > 2e6) reject(new Error('请求体过大')); });
+    req.on('data', d => { buf += d; if (buf.length > limit) reject(new Error('请求体过大')); });
     req.on('end', () => { try { resolve(JSON.parse(buf || '{}')); } catch (e) { reject(e); } });
     req.on('error', reject);
   });
@@ -192,6 +192,22 @@ ${b.title ? `<header class="post-head"><h1>${md.esc(b.title)}</h1></header>` : '
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         return res.end(html);
       }
+      if (p === '/api/upload' && req.method === 'POST') {
+        // 图片上传：{name, b64(dataURL 或纯 base64)} → assets/uploads/
+        const b = await readBody(req, 12e6);
+        if (!b.name || !b.b64) throw new Error('缺少文件');
+        const ext = (path.extname(String(b.name)) || '.png').toLowerCase();
+        if (!['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext)) throw new Error('仅支持 png/jpg/gif/webp/svg');
+        const buf = Buffer.from(String(b.b64).replace(/^data:[^,]+,/, ''), 'base64');
+        if (buf.length < 64) throw new Error('图片内容无效');
+        if (buf.length > 8 * 1024 * 1024) throw new Error('图片超过 8MB');
+        const name = 'img-' + Date.now() + Math.random().toString(36).slice(2, 6) + ext;
+        fs.mkdirSync(path.join(ROOT, 'assets', 'uploads'), { recursive: true });
+        fs.writeFileSync(path.join(ROOT, 'assets', 'uploads', name), buf);
+        console.log(`已上传图片：assets/uploads/${name}`);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: true, url: '/assets/uploads/' + name }));
+      }
       if (p === '/api/build' && req.method === 'POST') return runScript('build.js', res);
       if (p === '/api/deploy' && req.method === 'POST') return runScript('deploy.js', res);
       throw new Error('未知接口');
@@ -213,6 +229,14 @@ ${b.title ? `<header class="post-head"><h1>${md.esc(b.title)}</h1></header>` : '
     let file = path.normalize(path.join(DIST, fileP));
     if (!file.startsWith(DIST)) { res.writeHead(403); return res.end('Forbidden'); }
     if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+      // 上传的图片直接回源目录，无需等构建
+      if (p.startsWith('/assets/uploads/')) {
+        const src = path.join(ROOT, p.slice(1));
+        if (fs.existsSync(src) && fs.statSync(src).isFile()) {
+          res.writeHead(200, { 'Content-Type': MIME[path.extname(src)] || 'application/octet-stream' });
+          return res.end(fs.readFileSync(src));
+        }
+      }
       file = path.join(DIST, '404.html');
       res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(fs.readFileSync(file));
