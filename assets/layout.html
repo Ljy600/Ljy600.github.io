@@ -533,9 +533,23 @@
   /* ---------- 令牌 ---------- */
   function showToken() { $('token-bar').classList.remove('hidden'); }
   $('token-save').onclick = async () => {
-    TOKEN = $('token-input').value.trim(); if (!TOKEN) return;
-    localStorage.setItem('blog_github_token', TOKEN);
-    try { await gh('GET', `/repos/${OWNER}/${REPO}`); $('token-bar').classList.add('hidden'); status('✅ 已连接', 'ok'); } catch (e) { status('令牌无效：' + e.message, 'err'); }
+    TOKEN = $('token-input').value.trim();
+    if (!TOKEN) { status('请先粘贴令牌', 'err'); return; }
+    status('正在验证令牌…');
+    try {
+      await gh('GET', `/repos/${OWNER}/${REPO}`);
+      try { localStorage.setItem(TOKEN_KEY, TOKEN); } catch (e) {}
+      $('token-bar').classList.add('hidden');
+      status('✅ 连接成功', 'ok');
+    } catch (e) {
+      const msg = String(e.message || e);
+      let hint;
+      if (/401|Bad credentials/i.test(msg)) hint = '令牌无效或已过期，请重新生成';
+      else if (/403/i.test(msg)) hint = '权限不足，需要 Contents Read and write';
+      else if (/404|Not Found/i.test(msg)) hint = '令牌没有勾选本仓库（Repository access）';
+      else hint = msg;
+      status('❌ 连接失败：' + hint, 'err');
+    }
   };
 
   /* ---------- 分段选择按钮 ---------- */

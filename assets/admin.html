@@ -700,17 +700,27 @@ ${title ? `<header class="post-head"><h1>${mdEsc(title)}</h1></header>` : ''}
     $('token-bar').classList.remove('hidden');
     $('token-hint').textContent = hint || '首次使用请连接 GitHub（令牌只保存在你当前浏览器里）：';
   }
-  $('token-save').onclick = async () => {
+$('token-save').onclick = async () => {
     const v = $('token-input').value.trim();
-    if (!v) return;
-    TOKEN = v; localStorage.setItem(TOKEN_KEY, v);
+    if (!v) { status('请先把令牌粘贴进输入框再点连接', 'err'); return; }
+    TOKEN = v;
+    status('正在验证令牌…');
     try {
       await gh('GET', `/repos/${OWNER}/${REPO}`);
+      try { localStorage.setItem(TOKEN_KEY, v); } catch (e) {}
       $('token-bar').classList.add('hidden');
-      status('✅ 已连接 GitHub，可以开始写作了', 'ok');
-      refreshList();
+      status('✅ 令牌有效，正在读取文章列表…', 'ok');
+      await refreshList();
+      const n = document.querySelectorAll('.side-item').length;
+      status('🎉 连接成功！读到 ' + n + ' 篇文章，可以开始写作了', 'ok');
     } catch (e) {
-      status('令牌无效或权限不足：' + e.message, 'err');
+      const msg = String(e.message || e);
+      let hint;
+      if (/401|Bad credentials/i.test(msg)) hint = '令牌无效或已过期 → 请回到 GitHub 令牌页面重新生成一个，再粘贴到这里';
+      else if (/403/i.test(msg)) hint = '权限不足 → 令牌需要勾选 Contents: Read and write 权限';
+      else if (/404|Not Found/i.test(msg)) hint = '找不到仓库 → 创建令牌时必须在 Repository access 里勾选 Ljy600/Ljy600.github.io';
+      else hint = msg;
+      status('❌ 连接失败：' + hint, 'err');
     }
   };
 
