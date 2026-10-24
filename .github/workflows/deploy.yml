@@ -1,0 +1,34 @@
+name: Build & Deploy
+
+# 推送到 main（文章/源码）时自动构建并发布到 gh-pages 分支
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Build site
+        run: node build.js
+
+      - name: Deploy to gh-pages
+        run: |
+          cd dist
+          git init -q -b gh-pages
+          git config user.name "Ljy600"
+          git config user.email "ljs_jingyuan@163.com"
+          git add -A
+          git commit -qm "Deploy ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/Ljy600/Ljy600.github.io.git"
+          git push -qf origin gh-pages

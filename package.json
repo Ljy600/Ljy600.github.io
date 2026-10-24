@@ -1,0 +1,11 @@
+{
+  "name": "diy-blog",
+  "version": "1.0.0",
+  "private": true,
+  "description": "自制零依赖静态博客引擎",
+  "scripts": {
+    "build": "node build.js",
+    "serve": "node build.js && node serve.js",
+    "deploy": "node deploy.js"
+  }
+}

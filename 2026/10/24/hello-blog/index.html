@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>开博记：从一篇洛谷文章开始 | Ljy600's Blog</title>
+<meta name="description" content="这个博客今天正式开张。它的诞生源自洛谷上的一篇文章——《从零搭建 Hexo + Github 博客》（VenusM1nT，2019 年）。照着做了一遍，整体流程依然成立，但也踩到了一些七年之后的&amp;quot;时代差异&amp;quot;，记录在这里，也许对后来人有帮助。 环境 Windows 系统 Node.js 24 LTS（……">
+<meta property="og:title" content="开博记：从一篇洛谷文章开始 | Ljy600's Blog">
+<meta property="og:description" content="这个博客今天正式开张。它的诞生源自洛谷上的一篇文章——《从零搭建 Hexo + Github 博客》（VenusM1nT，2019 年）。照着做了一遍，整体流程依然成立，但也踩到了一些七年之后的&amp;quot;时代差异&amp;quot;，记录在这里，也许对后来人有帮助。 环境 Windows 系统 Node.js 24 LTS（……">
+<link rel="icon" href="/assets/favicon.svg?v=1792811389869" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css?v=1792811389869">
+<link rel="alternate" type="application/atom+xml" title="Ljy600's Blog" href="/atom.xml">
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({ TeX: { extensions: ["color.js"] }, showProcessingMessages: false });
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/languages/latex.min.js"></script>
+<script>window.addEventListener('load',function(){document.querySelectorAll('pre code').forEach(function(e){try{hljs.highlightElement(e)}catch(_){}})});</script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="site-title" href="/">Ljy600's Blog<span class="site-sub">记录与分享</span></a>
+    <nav class="site-nav"><a href="/" class="active">首页</a><a href="/archives/">归档</a><a href="/tags/">标签</a><a href="/about/">关于</a></nav>
+  </div>
+</header>
+<main class="wrap">
+<article class="post-full">
+  <header class="post-head">
+    <h1>开博记：从一篇洛谷文章开始</h1>
+    <div class="post-meta-line"><time>2026-10-24</time> · 建站 · <a class="tag" href="/tags/%E5%BB%BA%E7%AB%99%E7%AC%94%E8%AE%B0/">#建站笔记</a> · <a class="tag" href="/tags/GitHub%20Pages/">#GitHub Pages</a></div>
+  </header>
+  <div class="post-body"><p>这个博客今天正式开张。它的诞生源自洛谷上的一篇文章——《<a href="https://www.luogu.com.cn/article/vglpq15p" target="_blank" rel="noopener">从零搭建 Hexo + Github 博客</a>》（VenusM1nT，2019 年）。照着做了一遍，整体流程依然成立，但也踩到了一些七年之后的&quot;时代差异&quot;，记录在这里，也许对后来人有帮助。</p>
+<h2>环境</h2>
+<ul>
+<li>Windows 系统</li>
+<li>Node.js 24 LTS（v24.22.1）</li>
+<li>Git 2.56</li>
+</ul>
+<h2>与原文不同的地方</h2>
+<p>原文写于 2019 年，以下几处按现在的实际情况做了调整：</p>
+<ol>
+<li><strong>部署分支用 <code>main</code> 而不是 <code>master</code></strong>。现在 GitHub 新建仓库的默认分支是 <code>main</code>，个人站点（<code>用户名.github.io</code>）会自动从默认分支构建页面。照原文配 <code>master</code> 反而要去设置里手动切分支，还容易碰到原文第 4 节提到的 404 问题。</li>
+<li><strong><code>url</code> 用 <code>https</code></strong>。GitHub Pages 早就全面支持 HTTPS，还建议开启 Enforce HTTPS。</li>
+<li><strong>部署地址用 SSH</strong>。既然 SSH key 已经配好，部署时不会再弹登录窗口。</li>
+</ol>
+<h2>额外踩的一个坑</h2>
+<p><code>hexo-renderer-mathjax</code> 在新版 Hexo 下加载会报 <code>hexo is not defined</code>——插件在子文件里引用了全局 <code>hexo</code>，而新版 Hexo 不再提供它。解决办法是在插件入口补一行 <code>global.hexo = hexo;</code>。这类直接改动 <code>node_modules</code> 的补丁在每次重新安装依赖后都要重打，是这类方案最大的维护成本。</p>
+<h2>效果验证</h2>
+<p>行内公式 <script type="math/tex">E = mc^2</script> 与块级公式：</p>
+<script type="math/tex; mode=display">\int_{-\infty}^{\infty} e^{-x^2} \, dx = \sqrt{\pi}</script>
+<p>都能正常渲染。能看到上面两行变成了排版好的数学符号，就说明整条链路是通的。</p>
+<blockquote><p><strong>更新（2026-10-24）</strong>：当晚博客切换到了自制的静态生成引擎，不再使用 Hexo——零依赖、一个 <code>build.js</code> 搞定，详见《<a href="/2026/10/24/hexo-daily-guide/">这台博客的日常使用手册</a>》。本文保留作为那段搭建过程的记录。</p></blockquote>
+</div>
+  <nav class="post-nav"><a class="pn newer" href="/2026/10/24/hexo-daily-guide/"><span>较新一篇</span><strong>这台博客的日常使用手册</strong></a></nav>
+</article>
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>&copy; 2026 Ljy600 · 自制引擎驱动 · <a href="/atom.xml">RSS</a></p>
+    <p><a href="https://github.com/Ljy600" target="_blank" rel="noopener">GitHub</a></p>
+  </div>
+</footer>
+<button id="backtop" title="回到顶部">&uarr;</button>
+<script>var bt=document.getElementById('backtop');window.addEventListener('scroll',function(){bt.classList.toggle('show',window.scrollY>600)});bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});</script>
+</body>
+</html>
