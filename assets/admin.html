@@ -355,7 +355,7 @@
   /* ================= 实时预览 ================= */
   function previewHtml(title, bodyMd) {
     const body = renderMarkdown(bodyMd);
-    // 注意：模板内不能出现字面 </script>（会被 HTML 解析器当作脚本结束标签），必须写成 <\/script>
+    // 注意：模板内的脚本闭合标签必须写成转义形式，否则会被 HTML 解析器当作本脚本的结束
     return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>预览</title>
 <link rel="stylesheet" href="/assets/style.css">
