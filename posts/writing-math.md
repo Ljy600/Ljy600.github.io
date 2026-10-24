@@ -3,6 +3,7 @@ title: 在文章里写数学公式
 date: 2026-10-24 11:30:00
 categories: 教程
 tags: [LaTeX, MathJax, 教程]
+draft: true
 ---
 
 这台博客配置了 MathJax，文章里可以直接写 LaTeX 公式。这篇既是用法指南，也是渲染效果的自测页——下面每一条公式都能正确显示，就说明公式系统工作正常。
