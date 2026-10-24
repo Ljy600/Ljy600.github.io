@@ -49,19 +49,23 @@ function safeName(f) {
   return f + '.md';
 }
 
-/* ---------- 文章读写 ---------- */
+/* ---------- 文章/页面 读写（target: post | page） ---------- */
 
-function listPosts() {
+function dirOf(target) { return target === 'page' ? path.join(ROOT, 'pages') : POSTS; }
+
+function listDocs(target) {
+  const dir = dirOf(target);
   const out = [];
-  for (const f of fs.readdirSync(POSTS)) {
+  for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith('.md')) continue;
-    const { data } = md.parseFrontMatter(fs.readFileSync(path.join(POSTS, f), 'utf8'));
+    const { data } = md.parseFrontMatter(fs.readFileSync(path.join(dir, f), 'utf8'));
     out.push({
       file: f.replace(/\.md$/, ''),
       title: data.title || f,
       date: data.date || '',
       tags: data.tags || '',
-      draft: data.draft === 'true'
+      draft: data.draft === 'true',
+      sticky: data.sticky === 'true'
     });
   }
   out.sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -111,42 +115,59 @@ http.createServer(async (req, res) => {
     if (p.startsWith('/api/')) {
       if (p === '/api/list') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        return res.end(JSON.stringify(listPosts()));
+        return res.end(JSON.stringify(listDocs(url.searchParams.get('t') === 'page' ? 'page' : 'post')));
       }
       if (p === '/api/load') {
+        const target = url.searchParams.get('t') === 'page' ? 'page' : 'post';
         const file = safeName(url.searchParams.get('f') || '');
-        if (!file || !fs.existsSync(path.join(POSTS, file))) throw new Error('文章不存在');
+        if (!file || !fs.existsSync(path.join(dirOf(target), file))) throw new Error('文件不存在');
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-        return res.end(fs.readFileSync(path.join(POSTS, file), 'utf8'));
+        return res.end(fs.readFileSync(path.join(dirOf(target), file), 'utf8'));
       }
       if (p === '/api/save' && req.method === 'POST') {
         const b = await readBody(req);
+        const target = b.target === 'page' ? 'page' : 'post';
         const file = safeName(String(b.file || ''));
         if (!file) throw new Error('文件名只能包含中文、字母、数字、连字符和下划线');
         const tags = String(b.tags || '').replace(/[[\]]/g, '').trim();
+        const dir = dirOf(target);
         const fm = [
           '---',
           `title: ${String(b.title || b.file).replace(/\n/g, ' ')}`,
-          `date: ${b.date || md.fmtDateTime(new Date())}`,
+          target === 'post' ? `date: ${b.date || md.fmtDateTime(new Date())}` : '',
           b.categories ? `categories: ${String(b.categories).replace(/\n/g, ' ')}` : '',
           tags ? `tags: [${tags}]` : '',
           b.sticky ? 'sticky: true' : '',
           b.draft ? 'draft: true' : '',
           '---', ''
         ].filter(Boolean).join('\n');
-        fs.writeFileSync(path.join(POSTS, file), fm + '\n' + String(b.body || '').replace(/\r\n/g, '\n'), 'utf8');
-        console.log(`已保存：posts/${file}`);
+        fs.writeFileSync(path.join(dir, file), fm + '\n' + String(b.body || '').replace(/\r\n/g, '\n'), 'utf8');
+        console.log(`已保存：${target === 'page' ? 'pages' : 'posts'}/${file}`);
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: true, file: file.replace(/\.md$/, '') }));
       }
       if (p === '/api/delete' && req.method === 'POST') {
         const b = await readBody(req);
+        const target = b.target === 'page' ? 'page' : 'post';
         const file = safeName(String(b.file || ''));
         if (!file) throw new Error('文件名不合法');
-        const full = path.join(POSTS, file);
-        if (!fs.existsSync(full)) throw new Error('文章不存在');
+        const full = path.join(dirOf(target), file);
+        if (!fs.existsSync(full)) throw new Error('文件不存在');
         fs.unlinkSync(full);
-        console.log(`已删除：posts/${file}`);
+        console.log(`已删除：${target === 'page' ? 'pages' : 'posts'}/${file}`);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(JSON.stringify({ ok: true }));
+      }
+      if (p === '/api/config' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end(fs.readFileSync(path.join(ROOT, 'site.json'), 'utf8'));
+      }
+      if (p === '/api/config' && req.method === 'POST') {
+        const b = await readBody(req);
+        if (!b.json || typeof b.json !== 'string') throw new Error('缺少 json 字段');
+        const parsed = JSON.parse(b.json); // 校验合法性，非法直接抛错
+        fs.writeFileSync(path.join(ROOT, 'site.json'), JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+        console.log('已更新 site.json');
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         return res.end(JSON.stringify({ ok: true }));
       }
@@ -180,6 +201,10 @@ ${b.title ? `<header class="post-head"><h1>${md.esc(b.title)}</h1></header>` : '
     if (p === '/admin' || p === '/admin/' || p.startsWith('/admin/index')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(fs.readFileSync(path.join(ROOT, 'assets', 'admin.html'), 'utf8'));
+    }
+    if (p === '/admin/layout' || p === '/admin/layout/' || p.startsWith('/admin/layout/index')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(fs.readFileSync(path.join(ROOT, 'assets', 'layout.html'), 'utf8'));
     }
 
     /* ---- 静态文件 ---- */

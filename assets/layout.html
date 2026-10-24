@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>布局与页面 | Ljy600's Blog</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/style.css">
+<script>window.module = { exports: {} };</script>
+<script src="/assets/markdown.js"></script>
+<style>
+  body.admin { background: var(--bg); }
+  .admin-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .admin-bar h1 { font-size: 19px; margin: 0; }
+  .admin-bar .spacer { flex: 1; }
+  .cols { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+  .card { flex: 1 1 340px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-card); box-shadow: var(--shadow); padding: 18px 20px; }
+  .card h2 { margin: 0 0 4px; font-size: 16.5px; font-family: var(--serif); }
+  .card .hint { margin: 0 0 14px; font-size: 12.5px; color: var(--text-light); }
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; background: transparent; color: var(--text-light); font-size: 13px; padding: 5px 13px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.active { background: var(--accent-grad); color: #fff; }
+  .lay-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 13px 0; }
+  .lay-row label { color: var(--text); font-size: 14px; }
+  .lay-row small { display: block; color: var(--text-light); font-size: 12px; }
+  .switch { position: relative; width: 40px; height: 22px; flex: 0 0 40px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch i { position: absolute; inset: 0; border-radius: 999px; background: var(--border); transition: 0.2s; cursor: pointer; }
+  .switch i::before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; border-radius: 50%; background: #fff; transition: 0.2s; }
+  .switch input:checked + i { background: var(--accent-grad); }
+  .switch input:checked + i::before { transform: translateX(18px); }
+  .nav-item { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  .nav-item input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 13.5px; font-family: inherit; }
+  .nav-item input:focus { outline: 2px solid var(--accent-weak); border-color: var(--accent); }
+  .icon-btn { width: 30px; height: 30px; flex: 0 0 30px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-light); cursor: pointer; font-size: 13px; }
+  .icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .icon-btn.del:hover { color: #d97706; border-color: #d97706; }
+  button.btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; cursor: pointer; font-family: inherit; }
+  button.btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.btn.primary { background: var(--accent-grad); border-color: transparent; color: #fff; }
+  button.btn.primary:hover { filter: brightness(1.08); color: #fff; }
+  button.btn.danger:hover { border-color: #d97706; color: #d97706; }
+  .page-row { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px dashed var(--border); font-size: 14.5px; }
+  .page-row:last-child { border-bottom: none; }
+  .page-row strong { flex: 1; }
+  .page-row small { color: var(--text-light); font-family: var(--mono); }
+  #status { font-size: 13.5px; color: var(--text-light); margin: 0 0 12px; }
+  #status.ok { color: var(--accent); }
+  #status.err { color: #d97706; }
+  .token-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--accent-weak); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 13.5px; }
+  .token-bar input { flex: 1; min-width: 200px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-size: 14px; }
+  .hidden { display: none !important; }
+  .page-editor { margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 14px; }
+  .page-editor input[type=text] { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit; margin-bottom: 8px; }
+  .page-editor textarea { width: 100%; min-height: 200px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.7; font-family: Consolas, "Microsoft YaHei", monospace; resize: vertical; }
+  .page-editor label { font-size: 12.5px; color: var(--text-light); display: block; margin: 8px 0 4px; }
+</style>
+</head>
+<body class="admin">
+<div class="wrap">
+  <div class="admin-bar">
+    <h1>🎨 布局与页面</h1>
+    <a class="btn" href="/admin/">✍️ 文章编辑</a>
+    <span class="spacer"></span>
+    <button class="btn primary" id="btn-save-all">保存布局并发布</button>
+    <a class="btn" href="/" target="_blank">看博客 ↗</a>
+  </div>
+
+  <div class="token-bar hidden" id="token-bar">
+    <span>在线编辑需要 GitHub 令牌（只存在你当前浏览器）：</span>
+    <input type="password" id="token-input" placeholder="粘贴 Fine-grained PAT">
+    <button class="btn primary" id="token-save">连接</button>
+  </div>
+
+  <p id="status"></p>
+
+  <div class="cols">
+    <!-- 布局 -->
+    <div class="card">
+      <h2>界面布局</h2>
+      <p class="hint">控制每个 UI 区块的位置与去留，保存后全站生效</p>
+
+      <div class="lay-row">
+        <label>头部位置<small>站名与导航的排列</small></label>
+        <div class="seg" id="seg-header">
+          <button type="button" data-val="left">居左</button>
+          <button type="button" data-val="center">居中</button>
+        </div>
+      </div>
+      <div class="lay-row">
+        <label>头部吸顶<small>向下滚动时导航固定在顶部</small></label>
+        <span class="switch"><input type="checkbox" id="lay-sticky"><i></i></span>
+      </div>
+      <div class="lay-row">
+        <label>首页大标题区<small>Hero 区与统计信息</small></label>
+        <span class="switch"><input type="checkbox" id="lay-hero"><i></i></span>
+      </div>
+      <div class="lay-row">
+        <label>文章列表样式</label>
+        <div class="seg" id="seg-list">
+          <button type="button" data-val="list">列表式</button>
+          <button type="button" data-val="card">卡片式</button>
+        </div>
+      </div>
+      <div class="lay-row">
+        <label>页脚<small>版权与 RSS 链接</small></label>
+        <span class="switch"><input type="checkbox" id="lay-footer"><i></i></span>
+      </div>
+      <div class="lay-row">
+        <label>阅读时长<small>文章页"约 X 分钟"</small></label>
+        <span class="switch"><input type="checkbox" id="lay-reading"><i></i></span>
+      </div>
+    </div>
+
+    <!-- 导航 + 页面 -->
+    <div class="card">
+      <h2>导航菜单</h2>
+      <p class="hint">上/下调整顺序，可添加自定义链接（如外部链接或页面）</p>
+      <div id="nav-list"></div>
+      <button class="btn" id="nav-add" style="margin-top:8px">＋ 添加导航项</button>
+    </div>
+
+    <div class="card">
+      <h2>独立页面</h2>
+      <p class="hint">如「关于」页，保存后可从上方导航菜单链接到它</p>
+      <div id="page-list"></div>
+      <button class="btn" id="page-new" style="margin-top:8px">＋ 新建页面</button>
+
+      <div class="page-editor hidden" id="page-editor">
+        <label>页面标题</label>
+        <input type="text" id="p-title" placeholder="如：友情链接">
+        <label>文件名（= 链接 /文件名/）</label>
+        <input type="text" id="p-slug" placeholder="如：links">
+        <label>内容（Markdown）</label>
+        <textarea id="p-body" placeholder="# 页面内容&#10;支持 Markdown 与 $公式$"></textarea>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px">
+          <input type="checkbox" id="p-nav"> 保存后把它加进导航菜单
+        </label>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn primary" id="p-save">保存页面</button>
+          <button class="btn" id="p-cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const status = (msg, cls) => { const s = $('status'); s.textContent = msg; s.className = cls || ''; };
+  const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const b64e = s => btoa(unescape(encodeURIComponent(s)));
+  const b64d = s => decodeURIComponent(escape(atob(String(s).replace(/\n/g, ''))));
+
+  const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const OWNER = 'Ljy600', REPO = 'Ljy600.github.io', API = 'https://api.github.com';
+  let TOKEN = localStorage.getItem('blog_github_token') || '';
+  let siteConfig = null;        // site.json 对象
+  let configSha = null;         // 在线模式下 site.json 的 sha
+  let pageSha = {};             // 在线模式下各页面文件的 sha
+  let editingPage = null;       // 当前编辑中的页面 slug
+  let dirtyNav = false;
+
+  async function gh(method, path, body) {
+    const r = await fetch(API + path, {
+      method,
+      headers: { Authorization: 'Bearer ' + TOKEN, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status);
+    return j;
+  }
+
+  /* ---------- 配置读取 ---------- */
+  async function loadConfig() {
+    if (LOCAL) {
+      siteConfig = JSON.parse(await (await fetch('/api/config')).text());
+    } else {
+      const meta = await gh('GET', `/repos/${OWNER}/${REPO}/contents/site.json`);
+      configSha = meta.sha;
+      siteConfig = JSON.parse(b64d(meta.content));
+    }
+  }
+
+  /* ---------- 布局表单 ---------- */
+  function fillLayoutForm() {
+    const L = siteConfig.layout || {};
+    const seg = (id, val) => $(id).querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.val === val));
+    seg('seg-header', L.headerStyle === 'center' ? 'center' : 'left');
+    seg('seg-list', L.listStyle === 'card' ? 'card' : 'list');
+    $('lay-sticky').checked = L.stickyHeader !== false;
+    $('lay-hero').checked = L.hero !== false;
+    $('lay-footer').checked = L.footer !== false;
+    $('lay-reading').checked = L.readingTime !== false;
+  }
+  function collectLayout() {
+    return {
+      headerStyle: $('seg-header').querySelector('.active').dataset.val,
+      stickyHeader: $('lay-sticky').checked,
+      hero: $('lay-hero').checked,
+      listStyle: $('seg-list').querySelector('.active').dataset.val,
+      footer: $('lay-footer').checked,
+      readingTime: $('lay-reading').checked
+    };
+  }
+
+  /* ---------- 导航编辑 ---------- */
+  function renderNav() {
+    const box = $('nav-list');
+    box.innerHTML = '';
+    (siteConfig.nav || []).forEach((item, i) => {
+      const row = document.createElement('div');
+      row.className = 'nav-item';
+      row.innerHTML = `
+        <input class="n-label" value="${escHtml(item.label)}" placeholder="名称" style="flex:0 0 96px">
+        <input class="n-href" value="${escHtml(item.href)}" placeholder="/路径/ 或 https://...">
+        <button class="icon-btn" data-act="up" title="上移">↑</button>
+        <button class="icon-btn" data-act="down" title="下移">↓</button>
+        <button class="icon-btn del" data-act="del" title="删除">✕</button>`;
+      row.querySelector('.n-label').addEventListener('input', e => { siteConfig.nav[i].label = e.target.value; });
+      row.querySelector('.n-href').addEventListener('input', e => { siteConfig.nav[i].href = e.target.value; });
+      row.addEventListener('click', e => {
+        const act = e.target.dataset && e.target.dataset.act;
+        if (!act) return;
+        if (act === 'del') siteConfig.nav.splice(i, 1);
+        if (act === 'up' && i > 0) [siteConfig.nav[i - 1], siteConfig.nav[i]] = [siteConfig.nav[i], siteConfig.nav[i - 1]];
+        if (act === 'down' && i < siteConfig.nav.length - 1) [siteConfig.nav[i + 1], siteConfig.nav[i]] = [siteConfig.nav[i], siteConfig.nav[i + 1]];
+        renderNav();
+      });
+      box.appendChild(row);
+    });
+  }
+  $('nav-add').onclick = () => { (siteConfig.nav = siteConfig.nav || []).push({ label: '新菜单', href: '/' }); renderNav(); };
+
+  /* ---------- 页面管理 ---------- */
+  async function renderPages() {
+    const box = $('page-list');
+    box.innerHTML = '<p class="hint" style="margin:0">载入中…</p>';
+    let pages = [];
+    if (LOCAL) {
+      pages = await (await fetch('/api/list?t=page')).json();
+    } else {
+      const files = await gh('GET', `/repos/${OWNER}/${REPO}/contents/pages`);
+      pages = files.filter(f => f.name.endsWith('.md')).map(f => { pageSha[f.name.replace(/\.md$/, '')] = f.sha; return { file: f.name.replace(/\.md$/, ''), title: f.name }; });
+    }
+    box.innerHTML = '';
+    if (!pages.length) box.innerHTML = '<p class="hint" style="margin:0">还没有独立页面。</p>';
+    pages.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'page-row';
+      row.innerHTML = `<strong>${escHtml(p.title || p.file)}</strong><small>/${escHtml(p.file)}/</small>
+        <button class="icon-btn" data-act="edit" title="编辑">✎</button>
+        <button class="icon-btn del" data-act="del" title="删除">✕</button>`;
+      row.addEventListener('click', async e => {
+        const act = e.target.dataset && e.target.dataset.act;
+        if (!act) return;
+        if (act === 'edit') await openPageEditor(p.file);
+        if (act === 'del') {
+          if (!confirm('确定删除页面「' + p.file + '」？')) return;
+          try {
+            if (LOCAL) await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: p.file, target: 'page' }) });
+            else {
+              let sha = pageSha[p.file];
+              if (!sha) { sha = (await gh('GET', `/repos/${OWNER}/${REPO}/contents/pages/${p.file}.md`)).sha; }
+              await gh('DELETE', `/repos/${OWNER}/${REPO}/contents/pages/${p.file}.md`, { message: '删除页面：' + p.file, sha });
+            }
+            // 同时移除导航里的对应项
+            siteConfig.nav = (siteConfig.nav || []).filter(n => n.href !== '/' + p.file + '/');
+            status('已删除页面 ' + p.file + (LOCAL ? '，点「保存布局并发布」使其生效' : '，正在自动重新构建'), 'ok');
+            renderPages();
+          } catch (err) { status('删除失败：' + err.message, 'err'); }
+        }
+      });
+      box.appendChild(row);
+    });
+  }
+
+  async function openPageEditor(slug) {
+    editingPage = slug || null;
+    $('page-editor').classList.remove('hidden');
+    $('p-slug').value = slug || '';
+    $('p-title').value = '';
+    $('p-body').value = '';
+    $('p-nav').checked = false;
+    if (slug) {
+      let raw;
+      if (LOCAL) raw = await (await fetch('/api/load?t=page&f=' + encodeURIComponent(slug))).text();
+      else raw = b64d((await gh('GET', `/repos/${OWNER}/${REPO}/contents/pages/${slug}.md`)).content);
+      const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+      if (m) { const t = m[1].match(/^title:\s*(.+)$/m); if (t) $('p-title').value = t[1].trim(); }
+      $('p-body').value = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+      $('p-nav').checked = (siteConfig.nav || []).some(n => n.href === '/' + slug + '/');
+    }
+  }
+
+  $('page-new').onclick = () => openPageEditor(null);
+  $('p-cancel').onclick = () => { $('page-editor').classList.add('hidden'); editingPage = null; };
+
+  /* ---------- 保存 ---------- */
+  async function savePage() {
+    const slug = $('p-slug').value.trim();
+    if (!slug) { status('请填写文件名', 'err'); return; }
+    if (!$('p-title').value.trim()) { status('请填写标题', 'err'); return; }
+    const mdText = `---\ntitle: ${$('p-title').value.trim()}\n---\n\n` + $('p-body').value.replace(/\r\n/g, '\n');
+    try {
+      if (LOCAL) {
+        const r = await fetch('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: slug, title: $('p-title').value.trim(), body: $('p-body').value, target: 'page' }) });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error);
+      } else {
+        let sha = pageSha[slug];
+        if (!sha && editingPage === slug) sha = pageSha[editingPage];
+        if (!sha) { try { sha = (await gh('GET', `/repos/${OWNER}/${REPO}/contents/pages/${slug}.md`)).sha; } catch (e) {} }
+        const res = await gh('PUT', `/repos/${OWNER}/${REPO}/contents/pages/${slug}.md`, { message: (editingPage === slug ? '更新页面：' : '新建页面：') + slug, content: b64e(mdText), ...(sha ? { sha } : {}) });
+        pageSha[slug] = res.content.sha;
+      }
+      // 导航同步
+      const href = '/' + slug + '/';
+      siteConfig.nav = siteConfig.nav || [];
+      const existing = siteConfig.nav.find(n => n.href === href);
+      if ($('p-nav').checked && !existing) siteConfig.nav.push({ label: $('p-title').value.trim(), href });
+      if (!$('p-nav').checked && existing) siteConfig.nav = siteConfig.nav.filter(n => n.href !== href);
+      renderNav();
+      editingPage = slug;
+      $('page-editor').classList.add('hidden');
+      status('✅ 页面已保存' + (LOCAL ? '，点「保存布局并发布」构建生效' : '，正在保存布局并触发构建'), 'ok');
+      if (!LOCAL) await saveAll();
+      renderPages();
+    } catch (e) { status('页面保存失败：' + e.message, 'err'); }
+  }
+  $('p-save').onclick = savePage;
+
+  async function saveAll() {
+    siteConfig.layout = collectLayout();
+    const json = JSON.stringify(siteConfig, null, 2);
+    try {
+      if (LOCAL) {
+        const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ json }) });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error);
+        status('正在构建…');
+        await fetch('/api/build', { method: 'POST' });
+        status('✅ 布局与页面已保存并构建，刷新博客即可看到', 'ok');
+      } else {
+        if (!TOKEN) { showToken(); return; }
+        status('正在提交 site.json 到 GitHub…');
+        let sha = configSha;
+        if (!sha) { try { sha = (await gh('GET', `/repos/${OWNER}/${REPO}/contents/site.json`)).sha; } catch (e) {} }
+        await gh('PUT', `/repos/${OWNER}/${REPO}/contents/site.json`, { message: '更新布局与导航', content: b64e(json), ...(sha ? { sha } : {}) });
+        status('✅ 已提交！GitHub Actions 正在自动构建，1-2 分钟后生效', 'ok');
+      }
+    } catch (e) { status('保存失败：' + e.message, 'err'); }
+  }
+  $('btn-save-all').onclick = saveAll;
+
+  /* ---------- 令牌 ---------- */
+  function showToken() { $('token-bar').classList.remove('hidden'); }
+  $('token-save').onclick = async () => {
+    TOKEN = $('token-input').value.trim(); if (!TOKEN) return;
+    localStorage.setItem('blog_github_token', TOKEN);
+    try { await gh('GET', `/repos/${OWNER}/${REPO}`); $('token-bar').classList.add('hidden'); status('✅ 已连接', 'ok'); } catch (e) { status('令牌无效：' + e.message, 'err'); }
+  };
+
+  /* ---------- 分段选择按钮 ---------- */
+  ['seg-header', 'seg-list'].forEach(id => {
+    $(id).addEventListener('click', e => {
+      if (e.target.tagName !== 'BUTTON') return;
+      $(id).querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+    });
+  });
+
+  /* ---------- 启动 ---------- */
+  (async () => {
+    if (!LOCAL && !TOKEN) showToken();
+    try {
+      await loadConfig();
+      fillLayoutForm();
+      renderNav();
+      await renderPages();
+      status(LOCAL ? '本地模式：改动保存后点「保存布局并发布」构建预览' : '在线模式：保存即提交 GitHub 自动构建');
+    } catch (e) {
+      status('载入失败：' + e.message, 'err');
+    }
+  })();
+})();
+</script>
+</body>
+</html>

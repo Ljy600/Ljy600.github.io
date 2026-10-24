@@ -23,6 +23,16 @@ const BUILD_TIME = new Date();
 const md = require('./markdown');
 const { esc, parseFrontMatter, parseDate, fmtDate, pad, renderMarkdown } = md;
 
+// 布局配置（site.json → layout）：控制各 UI 区块的位置与去留
+const LAYOUT = Object.assign({
+  headerStyle: 'left',   // left：左站名右导航 | center：整体居中
+  stickyHeader: true,    // 头部吸顶
+  hero: true,            // 首页大标题区
+  listStyle: 'list',     // list：左日期右摘要 | card：卡片流
+  footer: true,          // 页脚
+  readingTime: true      // 文章页"约 X 分钟"
+}, site.layout || {});
+
 /* ---------- 工具 ---------- */
 
 function escAttr(s) { return esc(s); }
@@ -115,8 +125,13 @@ function buildToc(html) {
 const ASSET_V = BUILD_TIME.getTime();
 
 function layout({ title, desc = site.description, body, path: cur = '/', bodyClass = '', progress = false }) {
-  const nav = site.nav.map(n =>
-    `<a href="${n.href}"${n.href === cur ? ' class="active"' : ''}>${n.label}</a>`).join('');
+  const nav = (site.nav || []).map(n =>
+    `<a href="${esc(n.href)}"${n.href === cur ? ' class="active"' : ''}>${esc(n.label)}</a>`).join('');
+  const hdrCls = [
+    LAYOUT.headerStyle === 'center' ? 'hdr-center' : '',
+    LAYOUT.stickyHeader ? '' : 'hdr-static'
+  ].filter(Boolean).join(' ');
+  const bodyCls = [bodyClass, hdrCls].filter(Boolean).join(' ');
 
   // 站长级主题配置（site.json → theme）：默认主题色 / 内容宽度
   const themeCfg = site.theme || {};
@@ -167,7 +182,7 @@ ${ownerStyle}<link id="hljs-light" rel="stylesheet" media="(prefers-color-scheme
   });
 });</script>
 </head>
-<body${bodyClass ? ` class="${bodyClass}"` : ''}>
+<body${bodyCls ? ` class="${bodyCls}"` : ''}>
 ${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
   <div class="wrap header-inner">
     <a class="site-title" href="/">${esc(site.title)}<span class="site-sub">${esc(site.subtitle)}</span></a>
@@ -200,12 +215,12 @@ ${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
 <main class="wrap">
 ${body}
 </main>
-<footer class="site-footer">
+${LAYOUT.footer ? `<footer class="site-footer">
   <div class="wrap">
     <p>&copy; ${BUILD_TIME.getFullYear()} ${esc(site.author)} · 自制引擎驱动 · <a href="/atom.xml">RSS</a></p>
     <p><a href="https://github.com/${esc(site.author)}" target="_blank" rel="noopener">GitHub</a></p>
   </div>
-</footer>
+</footer>` : ''}
 <button id="backtop" title="回到顶部">&uarr;</button>
 <script>
 var bt=document.getElementById('backtop');
@@ -292,10 +307,11 @@ function build() {
   const posts = loadPosts();
   const pages = loadPages();
 
-  // 首页（Hero 可通过 site.json → theme.hero:false 关闭）
+  // 首页（Hero 与列表样式由 layout 配置决定）
   const tagCount = {};
   posts.forEach(p => p.tags.forEach(t => (tagCount[t] = (tagCount[t] || 0) + 1)));
-  const heroOn = !(site.theme && site.theme.hero === false);
+  const heroOn = LAYOUT.hero !== false && !(site.theme && site.theme.hero === false);
+  const listCls = LAYOUT.listStyle === 'card' ? ' post-list cards' : ' post-list';
   writeFile('index.html', layout({
     title: site.title,
     desc: site.description,
@@ -305,7 +321,7 @@ function build() {
   <h1 class="hero-title">${esc(site.title)}</h1>
   <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
   <p class="hero-meta">${posts.length} 篇文章<span class="dot"></span>${Object.keys(tagCount).length} 个标签<span class="dot"></span>持续更新中</p>
-</section>\n` : ''}<section class="post-list">${posts.map(p => postItem(p, true)).join('\n')}</section>`
+</section>\n` : ''}<section class="${listCls.trim()}">${posts.map(p => postItem(p, true)).join('\n')}</section>`
   }));
 
   // 文章页（含上一篇/下一篇、阅读时长、进度条）
@@ -323,7 +339,7 @@ function build() {
       body: `<article class="post-full">
   <header class="post-head">
     <h1>${esc(p.title)}${p.sticky ? '<span class="pin-badge">置顶</span>' : ''}</h1>
-    <div class="post-meta-line"><time>${p.dateStr}</time>${p.category ? ` · ${esc(p.category)}` : ''} · 约 ${p.readingTime} 分钟${p.tags.map(t => ` · <a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
+    <div class="post-meta-line"><time>${p.dateStr}</time>${p.category ? ` · ${esc(p.category)}` : ''}${LAYOUT.readingTime ? ` · 约 ${p.readingTime} 分钟` : ''}${p.tags.map(t => ` · <a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
   </header>
   ${buildToc(p.fullHtml)}<div class="post-body">${p.fullHtml}</div>
   ${nav.length ? `<nav class="post-nav">${nav.join('')}</nav>` : ''}
@@ -405,9 +421,10 @@ ${urls.map(u => `  <url><loc>${site.url}${encodeURI(u)}</loc></url>`).join('\n')
   writeFile('.nojekyll', '');
   fs.cpSync(path.join(ROOT, 'assets'), path.join(DIST, 'assets'), { recursive: true });
 
-  // 在线写作后台：/admin/（通过 GitHub API 保存，浏览器端渲染预览）
-  ensureDir(path.join(DIST, 'admin'));
+  // 在线写作后台：/admin/ 与 /admin/layout/（通过 GitHub API 保存，浏览器端渲染预览）
+  ensureDir(path.join(DIST, 'admin', 'layout'));
   fs.copyFileSync(path.join(DIST, 'assets', 'admin.html'), path.join(DIST, 'admin', 'index.html'));
+  fs.copyFileSync(path.join(DIST, 'assets', 'layout.html'), path.join(DIST, 'admin', 'layout', 'index.html'));
   // 浏览器端预览用的渲染器（与构建器同一份 markdown.js）
   fs.copyFileSync(path.join(ROOT, 'markdown.js'), path.join(DIST, 'assets', 'markdown.js'));
 

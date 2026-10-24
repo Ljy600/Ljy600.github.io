@@ -4,17 +4,41 @@
   "description": "Ljy600 的个人博客：建站笔记、教程与日常记录",
   "author": "Ljy600",
   "url": "https://ljy600.github.io",
+  "nav": [
+    {
+      "label": "首页",
+      "href": "/"
+    },
+    {
+      "label": "归档",
+      "href": "/archives/"
+    },
+    {
+      "label": "标签",
+      "href": "/tags/"
+    },
+    {
+      "label": "关于",
+      "href": "/about/"
+    },
+    {
+      "label": "友情链接",
+      "href": "/links/"
+    }
+  ],
+  "layout": {
+    "headerStyle": "left",
+    "stickyHeader": true,
+    "hero": true,
+    "listStyle": "list",
+    "footer": true,
+    "readingTime": true
+  },
   "theme": {
     "accent": "",
     "width": "m",
     "font": "m",
     "hero": true
   },
-  "postsPerPage": 0,
-  "nav": [
-    { "label": "首页", "href": "/" },
-    { "label": "归档", "href": "/archives/" },
-    { "label": "标签", "href": "/tags/" },
-    { "label": "关于", "href": "/about/" }
-  ]
+  "postsPerPage": 0
 }

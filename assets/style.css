@@ -368,11 +368,33 @@ main.wrap { min-height: calc(100vh - 280px); padding-top: 34px; padding-bottom: 
 #backtop.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
 #backtop:hover { box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 55%, transparent); transform: translateY(-2px); }
 
+/* ---------- 布局变体（layout 配置 / 外观面板控制） ---------- */
+/* 头部整体居中 */
+body.hdr-center .header-inner { flex-direction: column; align-items: center; text-align: center; }
+body.hdr-center .site-nav { margin-top: 2px; }
+body.hdr-center .site-nav a:first-child, body.hdr-center .ui-toggle { margin-left: 20px; }
+/* 头部不吸顶 */
+body.hdr-static .site-header { position: static; -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--bg-card); }
+/* 卡片式文章列表 */
+.post-list.cards { display: flex; flex-direction: column; gap: 18px; }
+.post-list.cards .post-item {
+  display: block; border: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  border-radius: 14px; background: var(--bg-card); box-shadow: var(--shadow);
+  padding: 22px 26px; margin-bottom: 0;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.post-list.cards .post-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); background: var(--bg-card); }
+.post-list.cards .post-date { display: inline-block; padding: 0; margin-bottom: 8px; font-size: 12.5px; }
+.post-list.cards .post-title { font-size: 21px; }
+.post-list.cards .post-item.pinned { border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.post-list.cards + .post-list.cards { margin-top: 18px; }
+
 /* ---------- 移动端 ---------- */
 @media (max-width: 640px) {
   .hero { padding: 30px 0 24px; }
   .hero-title { font-size: 33px; }
   .post-item { flex-direction: column; gap: 4px; padding: 20px 4px; }
+  .post-list.cards .post-item { padding: 18px 18px; }
   .post-date { flex: none; padding-top: 0; }
   .post-head h1 { font-size: 25px; }
   .post-body { font-size: var(--post-font); }
