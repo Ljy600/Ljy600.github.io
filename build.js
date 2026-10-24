@@ -58,6 +58,7 @@ function loadPosts() {
     const parts = body.split(/<!--\s*more\s*-->/);
     const fullHtml = renderMarkdown(parts.join('\n\n'));
     const excerpt = stripTags(renderMarkdown(parts[0])).trim().replace(/\n+/g, ' ');
+    const fullText = stripTags(fullHtml).replace(/\s+/g, '');
     posts.push({
       title: data.title || slug,
       category: data.categories || '',
@@ -66,7 +67,8 @@ function loadPosts() {
       dateStr: fmtDate(date),
       permalink: permalink(date, slug),
       fullHtml,
-      excerpt: excerpt.length > 160 ? excerpt.slice(0, 160) + '……' : excerpt
+      excerpt: excerpt.length > 160 ? excerpt.slice(0, 160) + '……' : excerpt,
+      readingTime: Math.max(1, Math.round(fullText.length / 400)) // 中文约 400 字/分钟
     });
   }
   posts.sort((a, b) => b.date - a.date);
@@ -90,7 +92,7 @@ function loadPages() {
 
 const ASSET_V = BUILD_TIME.getTime();
 
-function layout({ title, desc = site.description, body, path: cur = '/' }) {
+function layout({ title, desc = site.description, body, path: cur = '/', bodyClass = '', progress = false }) {
   const nav = site.nav.map(n =>
     `<a href="${n.href}"${n.href === cur ? ' class="active"' : ''}>${n.label}</a>`).join('');
   return `<!DOCTYPE html>
@@ -109,13 +111,29 @@ function layout({ title, desc = site.description, body, path: cur = '/' }) {
 MathJax.Hub.Config({ TeX: { extensions: ["color.js"] }, showProcessingMessages: false });
 </script>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github.min.css">
+<link rel="stylesheet" media="(prefers-color-scheme: light)" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github.min.css">
+<link rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github-dark.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/languages/latex.min.js"></script>
-<script>window.addEventListener('load',function(){document.querySelectorAll('pre code').forEach(function(e){try{hljs.highlightElement(e)}catch(_){}})});</script>
+<script>window.addEventListener('load',function(){
+  document.querySelectorAll('pre code').forEach(function(e){try{hljs.highlightElement(e)}catch(_){}});
+  document.querySelectorAll('.post-body pre').forEach(function(pre){
+    var code=pre.querySelector('code'); if(!code) return;
+    var lang=(code.className.match(/language-([\\w-]+)/)||[])[1]||'';
+    if(lang){var chip=document.createElement('span');chip.className='code-lang';chip.textContent=lang;pre.appendChild(chip);}
+    var btn=document.createElement('button');btn.className='code-copy';btn.type='button';btn.textContent='复制';
+    btn.addEventListener('click',function(){
+      navigator.clipboard.writeText(code.textContent).then(function(){
+        btn.textContent='已复制 ✓';btn.classList.add('ok');
+        setTimeout(function(){btn.textContent='复制';btn.classList.remove('ok')},1600);
+      }).catch(function(){});
+    });
+    pre.appendChild(btn);
+  });
+});</script>
 </head>
-<body>
-<header class="site-header">
+<body${bodyClass ? ` class="${bodyClass}"` : ''}>
+${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
   <div class="wrap header-inner">
     <a class="site-title" href="/">${esc(site.title)}<span class="site-sub">${esc(site.subtitle)}</span></a>
     <nav class="site-nav">${nav}</nav>
@@ -131,7 +149,15 @@ ${body}
   </div>
 </footer>
 <button id="backtop" title="回到顶部">&uarr;</button>
-<script>var bt=document.getElementById('backtop');window.addEventListener('scroll',function(){bt.classList.toggle('show',window.scrollY>600)});bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});</script>
+<script>
+var bt=document.getElementById('backtop');
+window.addEventListener('scroll',function(){
+  bt.classList.toggle('show',window.scrollY>600);
+  var bar=document.querySelector('.progress');
+  if(bar){var h=document.documentElement;bar.style.transform='scaleX('+(h.scrollTop/(h.scrollHeight-h.clientHeight||1))+')';}
+},{passive:true});
+bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
+</script>
 </body>
 </html>`;
 }
@@ -157,15 +183,23 @@ function build() {
   const posts = loadPosts();
   const pages = loadPages();
 
-  // 首页
+  // 首页（Hero + 文章列表）
+  const tagCount = {};
+  posts.forEach(p => p.tags.forEach(t => (tagCount[t] = (tagCount[t] || 0) + 1)));
   writeFile('index.html', layout({
     title: site.title,
     desc: site.description,
     path: '/',
-    body: `<section class="post-list">${posts.map(p => postItem(p, true)).join('\n')}</section>`
+    body: `<section class="hero">
+  <div class="hero-blob b1"></div><div class="hero-blob b2"></div>
+  <h1 class="hero-title">${esc(site.title)}</h1>
+  <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
+  <p class="hero-meta">${posts.length} 篇文章<span class="dot"></span>${Object.keys(tagCount).length} 个标签<span class="dot"></span>持续更新中</p>
+</section>
+<section class="post-list">${posts.map(p => postItem(p, true)).join('\n')}</section>`
   }));
 
-  // 文章页（含上一篇/下一篇）
+  // 文章页（含上一篇/下一篇、阅读时长、进度条）
   posts.forEach((p, idx) => {
     const prev = posts[idx + 1]; // 更早
     const next = posts[idx - 1]; // 更新
@@ -175,10 +209,12 @@ function build() {
     writeFile(p.permalink.slice(1) + 'index.html', layout({
       title: `${p.title} | ${site.title}`,
       desc: p.excerpt,
+      bodyClass: 'page-post',
+      progress: true,
       body: `<article class="post-full">
   <header class="post-head">
     <h1>${esc(p.title)}</h1>
-    <div class="post-meta-line"><time>${p.dateStr}</time>${p.category ? ` · ${esc(p.category)}` : ''}${p.tags.map(t => ` · <a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
+    <div class="post-meta-line"><time>${p.dateStr}</time>${p.category ? ` · ${esc(p.category)}` : ''} · 约 ${p.readingTime} 分钟${p.tags.map(t => ` · <a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
   </header>
   <div class="post-body">${p.fullHtml}</div>
   ${nav.length ? `<nav class="post-nav">${nav.join('')}</nav>` : ''}
@@ -198,8 +234,6 @@ function build() {
   }));
 
   // 标签总览 + 各标签页
-  const tagCount = {};
-  posts.forEach(p => p.tags.forEach(t => (tagCount[t] = (tagCount[t] || 0) + 1)));
   const cloud = Object.keys(tagCount).sort((a, b) => tagCount[b] - tagCount[a]).map(t =>
     `<a class="tag tag-big" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}<small>${tagCount[t]}</small></a>`).join(' ');
   writeFile('tags/index.html', layout({
