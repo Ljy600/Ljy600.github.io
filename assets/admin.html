@@ -451,7 +451,7 @@
     d.documentElement.scrollTop = p * (d.documentElement.scrollHeight - d.documentElement.clientHeight);
   }, { passive: true });
   const b64e = s => btoa(unescape(encodeURIComponent(s)));
-  const b64d = s => decodeURIComponent(escape(atob(String(s).replace(/\n/g, ''))));
+  const b64d = s => { try { return decodeURIComponent(escape(atob(String(s).replace(/\n/g, '')))); } catch (e) { return ''; } };
 
   /* ================= GitHub API ================= */
   async function gh(method, path, body) {
@@ -506,10 +506,15 @@
         return;
       }
       const files = await gh('GET', `/repos/${OWNER}/${REPO}/contents/posts`);
-      posts = files.filter(f => f.name.endsWith('.md')).map(f => {
-        const { data } = parseFM(b64d(f.content));
+      // 目录接口不含文件内容，逐个读取以提取标题/日期/置顶/草稿状态
+      posts = (await Promise.all(files.filter(f => f.name.endsWith('.md')).map(async f => {
+        let data = {};
+        try {
+          const meta = await gh('GET', `/repos/${OWNER}/${REPO}/contents/posts/${f.name}`);
+          ({ data } = parseFM(b64d(meta.content)));
+        } catch (e) {}
         return { file: f.name.replace(/\.md$/, ''), sha: f.sha, title: data.title || f.name, date: data.date || '', draft: data.draft === 'true', sticky: data.sticky === 'true' };
-      }).sort((a, b) => (a.date < b.date ? 1 : -1));
+      }))).sort((a, b) => (a.date < b.date ? 1 : -1));
     }
     for (const p of posts) {
       const el = document.createElement('div');

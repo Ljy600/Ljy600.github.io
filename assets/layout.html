@@ -198,7 +198,7 @@
   const status = (msg, cls) => { const s = $('status'); s.textContent = msg; s.className = cls || ''; };
   const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const b64e = s => btoa(unescape(encodeURIComponent(s)));
-  const b64d = s => decodeURIComponent(escape(atob(String(s).replace(/\n/g, ''))));
+  const b64d = s => { try { return decodeURIComponent(escape(atob(String(s).replace(/\n/g, '')))); } catch (e) { return ''; } };
 
   const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
   const OWNER = 'Ljy600', REPO = 'Ljy600.github.io', API = 'https://api.github.com';
