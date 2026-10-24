@@ -32,7 +32,16 @@
     "hero": true,
     "listStyle": "list",
     "footer": true,
-    "readingTime": true
+    "readingTime": true,
+    "mainBlocks": [
+      "hero",
+      "posts"
+    ],
+    "sidebar": [
+      "latest",
+      "tags",
+      "archive"
+    ]
   },
   "theme": {
     "accent": "",

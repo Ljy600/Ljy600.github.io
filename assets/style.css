@@ -389,7 +389,49 @@ body.hdr-static .site-header { position: static; -webkit-backdrop-filter: none; 
 .post-list.cards .post-item.pinned { border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
 .post-list.cards + .post-list.cards { margin-top: 18px; }
 
+/* ---------- 侧栏（布局台拖入组件后出现） ---------- */
+body.has-side .wrap { max-width: calc(var(--content-width) + 280px); }
+.page-grid { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 38px; align-items: start; }
+.site-side { position: sticky; top: 86px; }
+.widget {
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg-card); box-shadow: var(--shadow);
+  padding: 16px 18px; margin-bottom: 16px;
+}
+.widget h3 {
+  margin: 0 0 10px; font-size: 13.5px; letter-spacing: 2px;
+  color: var(--text-light); font-weight: 700;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.w-list { list-style: none; margin: 0; padding: 0; }
+.w-list li { margin: 8px 0; font-size: 14px; line-height: 1.55; }
+.w-list li a { color: var(--text); }
+.w-list li a:hover { color: var(--accent); }
+.w-list small { color: var(--text-light); font-size: 12px; }
+.w-tags .tag { margin: 0 6px 8px 0; }
+.w-desc { margin: 6px 0; font-size: 13.5px; color: var(--text-light); line-height: 1.7; }
+
+/* ---------- 编辑器列表快捷操作（拖拽/置顶/删除） ---------- */
+.side-item { position: relative; padding-right: 78px; }
+.row-acts {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s;
+}
+.side-item:hover .row-acts { opacity: 1; }
+.row-acts button {
+  width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-card); color: var(--text-light); font-size: 12px;
+  cursor: pointer; line-height: 1; padding: 0;
+}
+.row-acts button:hover { color: var(--accent); border-color: var(--accent); }
+.row-acts button.on { color: var(--accent); border-color: var(--accent); background: var(--accent-weak); }
+.row-acts button:hover.act-del { color: #d97706; border-color: #d97706; }
+
 /* ---------- 移动端 ---------- */
+@media (max-width: 900px) {
+  .page-grid { grid-template-columns: 1fr; }
+  .site-side { position: static; }
+}
 @media (max-width: 640px) {
   .hero { padding: 30px 0 24px; }
   .hero-title { font-size: 33px; }

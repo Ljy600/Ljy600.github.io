@@ -30,8 +30,13 @@ const LAYOUT = Object.assign({
   hero: true,            // 首页大标题区
   listStyle: 'list',     // list：左日期右摘要 | card：卡片流
   footer: true,          // 页脚
-  readingTime: true      // 文章页"约 X 分钟"
+  readingTime: true,     // 文章页"约 X 分钟"
+  mainBlocks: ['hero', 'posts'],                  // 主内容区顺序（布局台可拖拽调整）
+  sidebar: ['latest', 'tags', 'archive']          // 侧栏组件（布局台拖拽增删排序；空数组=无侧栏）
 }, site.layout || {});
+
+// 构建过程中的站点数据，供侧栏组件使用
+const SITE_DATA = { posts: [], tagCount: {} };
 
 /* ---------- 工具 ---------- */
 
@@ -110,6 +115,33 @@ function loadPages() {
   return pages;
 }
 
+/* ---------- 侧栏组件 ---------- */
+
+function renderWidgets() {
+  const { posts, tagCount } = SITE_DATA;
+  return (LAYOUT.sidebar || []).map(w => {
+    if (w === 'latest') {
+      return `<div class="widget"><h3>最新文章</h3><ul class="w-list">${posts.slice(0, 5).map(p =>
+        `<li><a href="${p.permalink}">${esc(p.title)}</a></li>`).join('')}</ul></div>`;
+    }
+    if (w === 'tags') {
+      const t = Object.keys(tagCount).sort((a, b) => tagCount[b] - tagCount[a]).slice(0, 10);
+      return `<div class="widget"><h3>标签</h3><div class="w-tags">${t.map(x =>
+        `<a class="tag" href="/tags/${encodeURIComponent(x)}/">#${esc(x)}</a>`).join('')}</div></div>`;
+    }
+    if (w === 'archive') {
+      const years = {};
+      posts.forEach(p => (years[p.date.getFullYear()] = (years[p.date.getFullYear()] || 0) + 1));
+      return `<div class="widget"><h3>归档</h3><ul class="w-list">${Object.keys(years).sort((a, b) => b - a).map(y =>
+        `<li><a href="/archives/">${y} 年 <small>（${years[y]} 篇）</small></a></li>`).join('')}</ul></div>`;
+    }
+    if (w === 'about') {
+      return `<div class="widget"><h3>关于本站</h3><p class="w-desc">${esc(site.description)}</p><p class="w-desc"><a href="/about/">了解更多 →</a></p></div>`;
+    }
+    return '';
+  }).join('\n');
+}
+
 /* ---------- 文章目录（h2 数量 ≥3 时生成） ---------- */
 
 function buildToc(html) {
@@ -131,7 +163,7 @@ function layout({ title, desc = site.description, body, path: cur = '/', bodyCla
     LAYOUT.headerStyle === 'center' ? 'hdr-center' : '',
     LAYOUT.stickyHeader ? '' : 'hdr-static'
   ].filter(Boolean).join(' ');
-  const bodyCls = [bodyClass, hdrCls].filter(Boolean).join(' ');
+  const bodyCls = [bodyClass, hdrCls, (LAYOUT.sidebar || []).length ? 'has-side' : ''].filter(Boolean).join(' ');
 
   // 站长级主题配置（site.json → theme）：默认主题色 / 内容宽度
   const themeCfg = site.theme || {};
@@ -213,7 +245,7 @@ ${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
   </div>
 </header>
 <main class="wrap">
-${body}
+${(LAYOUT.sidebar || []).length ? `<div class="page-grid"><div class="main-col">${body}</div><aside class="site-side">${renderWidgets()}</aside></div>` : body}
 </main>
 ${LAYOUT.footer ? `<footer class="site-footer">
   <div class="wrap">
@@ -307,21 +339,27 @@ function build() {
   const posts = loadPosts();
   const pages = loadPages();
 
-  // 首页（Hero 与列表样式由 layout 配置决定）
+  // 首页（Hero 与列表样式由 layout 配置决定；主内容区顺序可拖拽调整）
   const tagCount = {};
   posts.forEach(p => p.tags.forEach(t => (tagCount[t] = (tagCount[t] || 0) + 1)));
+  SITE_DATA.posts = posts;
+  SITE_DATA.tagCount = tagCount;
   const heroOn = LAYOUT.hero !== false && !(site.theme && site.theme.hero === false);
   const listCls = LAYOUT.listStyle === 'card' ? ' post-list cards' : ' post-list';
-  writeFile('index.html', layout({
-    title: site.title,
-    desc: site.description,
-    path: '/',
-    body: `${heroOn ? `<section class="hero">
+  const heroHtml = heroOn ? `<section class="hero">
   <div class="hero-blob b1"></div><div class="hero-blob b2"></div>
   <h1 class="hero-title">${esc(site.title)}</h1>
   <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
   <p class="hero-meta">${posts.length} 篇文章<span class="dot"></span>${Object.keys(tagCount).length} 个标签<span class="dot"></span>持续更新中</p>
-</section>\n` : ''}<section class="${listCls.trim()}">${posts.map(p => postItem(p, true)).join('\n')}</section>`
+</section>` : '';
+  const postsHtml = `<section class="${listCls.trim()}">${posts.map(p => postItem(p, true)).join('\n')}</section>`;
+  const mainBody = (LAYOUT.mainBlocks || ['hero', 'posts'])
+    .map(b => (b === 'hero' ? heroHtml : postsHtml)).filter(Boolean).join('\n');
+  writeFile('index.html', layout({
+    title: site.title,
+    desc: site.description,
+    path: '/',
+    body: mainBody
   }));
 
   // 文章页（含上一篇/下一篇、阅读时长、进度条）
@@ -415,6 +453,17 @@ ${posts.map(p => `  <entry>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${site.url}${encodeURI(u)}</loc></url>`).join('\n')}
 </urlset>`);
+
+  // 内置帮助页：渲染 docs/使用文档.md → /guide/
+  const guidePath = path.join(ROOT, 'docs', '使用文档.md');
+  if (fs.existsSync(guidePath)) {
+    const guideRaw = fs.readFileSync(guidePath, 'utf8');
+    writeFile('guide/index.html', layout({
+      title: `使用文档 | ${site.title}`,
+      path: '/guide/',
+      body: `<article class="post-full"><div class="post-body">${renderMarkdown(guideRaw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ''))}</div></article>`
+    }));
+  }
 
   // robots.txt、.nojekyll、静态资源
   writeFile('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${site.url}/sitemap.xml\n`);

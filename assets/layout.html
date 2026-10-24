@@ -31,6 +31,8 @@
   .switch input:checked + i { background: var(--accent-grad); }
   .switch input:checked + i::before { transform: translateX(18px); }
   .nav-item { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  .drag-handle { cursor: grab; color: var(--text-light); font-size: 13px; user-select: none; padding: 0 2px; }
+  .drag-handle:hover { color: var(--accent); }
   .nav-item input { flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 13.5px; font-family: inherit; }
   .nav-item input:focus { outline: 2px solid var(--accent-weak); border-color: var(--accent); }
   .icon-btn { width: 30px; height: 30px; flex: 0 0 30px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-light); cursor: pointer; font-size: 13px; }
@@ -55,6 +57,26 @@
   .page-editor input[type=text] { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit; margin-bottom: 8px; }
   .page-editor textarea { width: 100%; min-height: 200px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.7; font-family: Consolas, "Microsoft YaHei", monospace; resize: vertical; }
   .page-editor label { font-size: 12.5px; color: var(--text-light); display: block; margin: 8px 0 4px; }
+  /* ---- 拖拽结构编辑 ---- */
+  .dropzones { display: flex; gap: 12px; }
+  .zone { flex: 1; min-width: 0; border: 2px dashed var(--border); border-radius: 12px; padding: 10px; transition: border-color .2s, background .2s; }
+  .zone.dragover { border-color: var(--accent); background: var(--accent-weak); }
+  .zone h4 { margin: 0 0 8px; font-size: 12.5px; color: var(--text-light); text-align: center; }
+  .zlist { min-height: 56px; display: flex; flex-direction: column; gap: 6px; }
+  .zchip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 11px; border: 1px solid var(--border); border-radius: 9px;
+    background: var(--bg); color: var(--text); font-size: 13.5px;
+    cursor: grab; user-select: none; transition: box-shadow .15s, opacity .15s;
+  }
+  .zchip:active { cursor: grabbing; }
+  .zchip.dragging { opacity: 0.45; }
+  .zchip small { color: var(--text-light); margin-left: auto; font-size: 11.5px; }
+  .zchip .zx { border: none; background: none; color: var(--text-light); cursor: pointer; font-size: 12px; padding: 0 2px; }
+  .zchip .zx:hover { color: #d97706; }
+  .palette { flex-direction: row; flex-wrap: wrap; min-height: 40px; }
+  .palette .zchip { flex: 0 0 auto; }
+  .zchip.ghost { outline: 2px dashed var(--accent); outline-offset: -2px; }
 </style>
 </head>
 <body class="admin">
@@ -76,6 +98,29 @@
   <p id="status"></p>
 
   <div class="cols">
+    <!-- 页面结构（拖拽） -->
+    <div class="card">
+      <h2>页面结构</h2>
+      <p class="hint">把右侧组件<strong>拖进侧栏</strong>即显示在每页侧边；拖回组件区即移除；在区域内上下拖动调顺序。保存后全站生效。</p>
+      <div class="dropzones">
+        <div class="zone" id="zone-main" data-zone="main">
+          <h4>主内容（顺序可拖）</h4>
+          <div class="zlist" id="list-main"></div>
+        </div>
+        <div class="zone" id="zone-side" data-zone="side">
+          <h4>侧栏（拖入显示）</h4>
+          <div class="zlist" id="list-side"></div>
+        </div>
+      </div>
+      <h4 style="margin:14px 0 8px;font-size:12.5px;color:var(--text-light)">可用组件（拖拽使用）</h4>
+      <div class="zlist palette" id="list-palette">
+        <span class="zchip" draggable="true" data-w="latest">📰 最新文章</span>
+        <span class="zchip" draggable="true" data-w="tags">🏷️ 标签云</span>
+        <span class="zchip" draggable="true" data-w="archive">📦 归档</span>
+        <span class="zchip" draggable="true" data-w="about">👤 关于卡片</span>
+      </div>
+    </div>
+
     <!-- 布局 -->
     <div class="card">
       <h2>界面布局</h2>
@@ -184,6 +229,117 @@
     }
   }
 
+  /* ---------- 页面结构拖拽编辑 ---------- */
+  const WIDGET_NAMES = { latest: '📰 最新文章', tags: '🏷️ 标签云', archive: '📦 归档', about: '👤 关于卡片' };
+  let mainBlocks = ['hero', 'posts'];
+  let sideBlocks = [];
+  let dragPayload = null;
+
+  function renderStructure() {
+    const main = $('list-main'), side = $('list-side');
+    main.innerHTML = ''; side.innerHTML = '';
+    mainBlocks.forEach((w, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'zchip'; chip.draggable = true;
+      chip.innerHTML = `${w === 'hero' ? '🧾 首页标题区' : '📃 文章列表'}<small>${i === 0 ? '顶部' : '底部'}</small>`;
+      attachDnd(chip, 'main', i);
+      main.appendChild(chip);
+    });
+    sideBlocks.forEach((w, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'zchip'; chip.draggable = true;
+      chip.innerHTML = `${WIDGET_NAMES[w] || w}<button class="zx" title="移除">✕</button>`;
+      chip.querySelector('.zx').onclick = () => { sideBlocks.splice(i, 1); renderStructure(); };
+      attachDnd(chip, 'side', i);
+      side.appendChild(chip);
+    });
+  }
+
+  function attachDnd(chip, zone, idx) {
+    chip.addEventListener('dragstart', e => {
+      dragPayload = { zone, idx };
+      chip.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', zone + ':' + idx); } catch (_) {}
+    });
+    chip.addEventListener('dragend', () => { chip.classList.remove('dragging'); dragPayload = null; });
+    chip.addEventListener('dragover', e => {
+      if (!dragPayload) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = chip.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      chip.classList.toggle('ghost', before);
+    });
+    chip.addEventListener('dragleave', () => chip.classList.remove('ghost'));
+    chip.addEventListener('drop', e => {
+      if (!dragPayload) return;
+      e.preventDefault(); e.stopPropagation();
+      chip.classList.remove('ghost');
+      const rect = chip.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      moveTo(dragPayload, zone, idx, before);
+      dragPayload = null;
+    });
+  }
+
+  function moveTo(payload, toZone, toIdx, before) {
+    if (payload.zone === 'palette' && toZone === 'main') return; // 组件只能进侧栏
+    let item;
+    if (payload.zone === 'palette') {
+      item = payload.w; // 从组件区拖入
+    } else {
+      const fromArr = payload.zone === 'main' ? mainBlocks : sideBlocks;
+      [item] = fromArr.splice(payload.idx, 1);
+    }
+    const arr = toZone === 'main' ? mainBlocks : sideBlocks;
+    let target = toIdx;
+    if (payload.zone === toZone && payload.idx < toIdx) target = toIdx - 1; // 同数组内先删后插的索引校正
+    const insertAt = before ? target : target + 1;
+    arr.splice(Math.min(insertAt, arr.length), 0, item);
+    renderStructure();
+  }
+
+  function bindZone(zoneId, zoneName) {
+    const zone = $(zoneId);
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('dragover'); });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      if (!dragPayload) return;
+      if (zoneName === 'side' && dragPayload.zone === 'main') return; // 主内容块不能进侧栏
+      moveTo(dragPayload, zoneName, (zoneName === 'side' ? sideBlocks : mainBlocks).length, false);
+      dragPayload = null;
+    });
+  }
+
+  // 组件区（调色板）：拖入=移除侧栏组件；组件芯片可拖出使用
+  function bindPalette() {
+    const p = $('list-palette');
+    p.querySelectorAll('.zchip').forEach(chip => {
+      chip.addEventListener('dragstart', e => {
+        dragPayload = { zone: 'palette', w: chip.dataset.w };
+        chip.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'copyMove';
+      });
+      chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+    });
+    p.addEventListener('dragover', e => e.preventDefault());
+    p.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragPayload) return;
+      if (dragPayload.zone === 'side') { sideBlocks.splice(dragPayload.idx, 1); renderStructure(); }
+      dragPayload = null;
+    });
+  }
+
+  function fillStructureForm() {
+    mainBlocks = (siteConfig.layout && siteConfig.layout.mainBlocks) || ['hero', 'posts'];
+    sideBlocks = (siteConfig.layout && siteConfig.layout.sidebar) || [];
+    renderStructure();
+  }
+
   /* ---------- 布局表单 ---------- */
   function fillLayoutForm() {
     const L = siteConfig.layout || {};
@@ -206,7 +362,8 @@
     };
   }
 
-  /* ---------- 导航编辑 ---------- */
+  /* ---------- 导航编辑（拖拽或按钮排序） ---------- */
+  let navDrag = null;
   function renderNav() {
     const box = $('nav-list');
     box.innerHTML = '';
@@ -214,20 +371,27 @@
       const row = document.createElement('div');
       row.className = 'nav-item';
       row.innerHTML = `
+        <span class="drag-handle" draggable="true" title="拖拽排序">⋮⋮</span>
         <input class="n-label" value="${escHtml(item.label)}" placeholder="名称" style="flex:0 0 96px">
         <input class="n-href" value="${escHtml(item.href)}" placeholder="/路径/ 或 https://...">
-        <button class="icon-btn" data-act="up" title="上移">↑</button>
-        <button class="icon-btn" data-act="down" title="下移">↓</button>
         <button class="icon-btn del" data-act="del" title="删除">✕</button>`;
       row.querySelector('.n-label').addEventListener('input', e => { siteConfig.nav[i].label = e.target.value; });
       row.querySelector('.n-href').addEventListener('input', e => { siteConfig.nav[i].href = e.target.value; });
+      const handle = row.querySelector('.drag-handle');
+      handle.addEventListener('dragstart', e => { navDrag = i; e.dataTransfer.effectAllowed = 'move'; });
+      handle.addEventListener('dragend', () => { navDrag = null; });
+      row.addEventListener('dragover', e => { if (navDrag !== null && navDrag !== i) e.preventDefault(); });
+      row.addEventListener('drop', e => {
+        if (navDrag === null || navDrag === i) return;
+        e.preventDefault();
+        const [moved] = siteConfig.nav.splice(navDrag, 1);
+        siteConfig.nav.splice(i, 0, moved);
+        navDrag = null;
+        renderNav();
+      });
       row.addEventListener('click', e => {
         const act = e.target.dataset && e.target.dataset.act;
-        if (!act) return;
-        if (act === 'del') siteConfig.nav.splice(i, 1);
-        if (act === 'up' && i > 0) [siteConfig.nav[i - 1], siteConfig.nav[i]] = [siteConfig.nav[i], siteConfig.nav[i - 1]];
-        if (act === 'down' && i < siteConfig.nav.length - 1) [siteConfig.nav[i + 1], siteConfig.nav[i]] = [siteConfig.nav[i], siteConfig.nav[i + 1]];
-        renderNav();
+        if (act === 'del') { siteConfig.nav.splice(i, 1); renderNav(); }
       });
       box.appendChild(row);
     });
@@ -334,6 +498,8 @@
 
   async function saveAll() {
     siteConfig.layout = collectLayout();
+    siteConfig.layout.mainBlocks = mainBlocks;
+    siteConfig.layout.sidebar = sideBlocks;
     const json = JSON.stringify(siteConfig, null, 2);
     try {
       if (LOCAL) {
@@ -378,7 +544,11 @@
     try {
       await loadConfig();
       fillLayoutForm();
+      fillStructureForm();
       renderNav();
+      bindZone('zone-main', 'main');
+      bindZone('zone-side', 'side');
+      bindPalette();
       await renderPages();
       status(LOCAL ? '本地模式：改动保存后点「保存布局并发布」构建预览' : '在线模式：保存即提交 GitHub 自动构建');
     } catch (e) {

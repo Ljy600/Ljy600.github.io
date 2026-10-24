@@ -83,6 +83,7 @@
     <h1>✍️ 写作</h1>
     <button class="btn" id="btn-new">＋ 新文章</button>
     <a class="btn" href="/admin/layout/" style="text-decoration:none;display:inline-block">🎨 布局与页面</a>
+    <a class="btn" href="/guide/" target="_blank" style="text-decoration:none;display:inline-block">📖 帮助</a>
     <span class="spacer"></span>
     <button class="btn" id="btn-save">保存并发布（Ctrl+S）</button>
     <button class="btn danger hidden" id="btn-del">删除本文</button>
@@ -121,7 +122,7 @@
       </div>
       <div class="panes">
         <div class="pane-edit">
-          <span class="label">正文（Markdown，支持 $公式$）</span>
+          <span class="label">正文（Markdown，支持 $公式$）<span id="wc" style="float:right;color:var(--text-light);font-weight:400"></span></span>
           <textarea id="body" placeholder="# 在这里开始写作&#10;&#10;支持 Markdown：**粗体**、`代码`、列表、表格、代码块、$E=mc^2$……&#10;单独一行写 &lt;!--more--&gt; 可截断首页摘要。"></textarea>
         </div>
         <div class="pane-preview">
@@ -152,6 +153,97 @@
 
   const status = (msg, cls) => { const s = $('status'); s.textContent = msg; s.className = cls || ''; };
   const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  /* ---- 列表快捷操作：置顶 / 删除（无需先载入文章） ---- */
+  function setStickyInRaw(raw, val) {
+    const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+    const fmLines = (m ? m[1] : '').split(/\r?\n/).filter(l => !/^sticky:/i.test(l));
+    if (val) fmLines.push('sticky: true');
+    const rest = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+    return '---\n' + fmLines.join('\n') + '\n---\n\n' + rest.replace(/^\n+/, '');
+  }
+
+  async function toggleSticky(file, pin) {
+    status('正在' + (pin ? '置顶' : '取消置顶') + '「' + file + '」…');
+    try {
+      if (LOCAL) {
+        const raw = await (await fetch('/api/load?f=' + encodeURIComponent(file))).text();
+        const { data, body } = parseFM(raw);
+        const r = await fetch('/api/save', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file, title: data.title || file, date: data.date || '', categories: data.categories || '', tags: (data.tags || '').replace(/^\[|\]$/g, ''), sticky: pin, draft: data.draft === 'true', body })
+        });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error);
+      } else {
+        if (!TOKEN) { showTokenBar('请先连接 GitHub 账号'); return; }
+        const meta = await gh('GET', `/repos/${OWNER}/${REPO}/contents/posts/${file}.md`);
+        const raw = b64d(meta.content);
+        await gh('PUT', `/repos/${OWNER}/${REPO}/contents/posts/${file}.md`, {
+          message: (pin ? '置顶' : '取消置顶') + '：' + file,
+          content: b64e(setStickyInRaw(raw, pin)), sha: meta.sha
+        });
+        pollBuild();
+      }
+      status('✅ 已' + (pin ? '置顶' : '取消置顶') + '「' + file + '」' + (LOCAL ? '，点"保存并构建"后生效' : '，正在自动重新构建'), 'ok');
+      refreshList();
+    } catch (e) { status('操作失败：' + e.message, 'err'); }
+  }
+
+  async function deleteFile(file) {
+    if (!confirm('确定删除文章「' + file + '」？此操作不可恢复。')) return;
+    try {
+      if (LOCAL) {
+        const r = await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file }) });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.error);
+      } else {
+        if (!TOKEN) { showTokenBar('请先连接 GitHub 账号'); return; }
+        let sha = null;
+        try { sha = (await gh('GET', `/repos/${OWNER}/${REPO}/contents/posts/${file}.md`)).sha; } catch (e) { throw new Error('文件不存在'); }
+        await gh('DELETE', `/repos/${OWNER}/${REPO}/contents/posts/${file}.md`, { message: '删除文章：' + file, sha });
+        pollBuild();
+      }
+      status('✅ 已删除「' + file + '」' + (LOCAL ? '，点"保存并构建"后生效' : '，正在自动重新构建'), 'ok');
+      if (current === file) newPost(); else refreshList();
+    } catch (e) { status('删除失败：' + e.message, 'err'); }
+  }
+
+  /* ---- 自动保存草稿（防丢稿） ---- */
+  const AUTOSAVE_KEY = 'blog_editor_autosave';
+  setInterval(() => {
+    if (!dirty) return;
+    try {
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+        current, at: Date.now(),
+        f: { title: $('f-title').value, slug: $('f-slug').value, date: $('f-date').value, cats: $('f-cats').value, tags: $('f-tags').value, sticky: $('f-sticky').checked, draft: $('f-draft').checked },
+        body: $('body').value
+      }));
+    } catch (e) {}
+  }, 5000);
+  function tryRestoreAutosave() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(AUTOSAVE_KEY) || 'null'); } catch (e) {}
+    if (!d || !d.body) return;
+    const ago = Math.round((Date.now() - d.at) / 60000);
+    if (confirm(`发现 ${ago <= 1 ? '刚刚' : ago + ' 分钟前'}的未保存内容（${(d.f.title || d.current || '无标题')}），要恢复吗？\n（取消则丢弃）`)) {
+      current = d.current;
+      $('f-title').value = d.f.title; $('f-slug').value = d.f.slug; $('f-date').value = d.f.date;
+      $('f-cats').value = d.f.cats; $('f-tags').value = d.f.tags;
+      $('f-sticky').checked = d.f.sticky; $('f-draft').checked = d.f.draft;
+      $('body').value = d.body; dirty = true;
+      status('已恢复未保存的内容，记得保存', 'ok');
+      renderPreview();
+    } else {
+      localStorage.removeItem(AUTOSAVE_KEY);
+    }
+  }
+
+  /* ---- 字数统计 ---- */
+  function updateWC() {
+    const t = $('body').value.replace(/\s/g, '');
+    $('wc').textContent = t ? `${t.length} 字 · 约 ${Math.max(1, Math.round(t.length / 400))} 分钟` : '';
+  }
   const b64e = s => btoa(unescape(encodeURIComponent(s)));
   const b64d = s => decodeURIComponent(escape(atob(String(s).replace(/\n/g, ''))));
 
@@ -207,14 +299,23 @@
       const files = await gh('GET', `/repos/${OWNER}/${REPO}/contents/posts`);
       posts = files.filter(f => f.name.endsWith('.md')).map(f => {
         const { data } = parseFM(b64d(f.content));
-        return { file: f.name.replace(/\.md$/, ''), sha: f.sha, title: data.title || f.name, date: data.date || '', draft: data.draft === 'true' };
+        return { file: f.name.replace(/\.md$/, ''), sha: f.sha, title: data.title || f.name, date: data.date || '', draft: data.draft === 'true', sticky: data.sticky === 'true' };
       }).sort((a, b) => (a.date < b.date ? 1 : -1));
     }
     for (const p of posts) {
       const el = document.createElement('div');
       el.className = 'side-item' + (p.file === current ? ' active' : '');
-      el.innerHTML = `<strong>${escHtml(p.title)}</strong>${p.draft ? ' <span class="draft-flag">[草稿]</span>' : ''}<small>${escHtml(p.date || '')}</small>`;
-      el.onclick = () => loadPost(p.file, p.sha);
+      el.innerHTML = `<strong>${escHtml(p.title)}</strong>${p.draft ? ' <span class="draft-flag">[草稿]</span>' : ''}<small>${escHtml(p.date || '')}</small>
+        <span class="row-acts">
+          <button type="button" title="置顶 / 取消置顶" class="${p.sticky ? 'on' : ''}" data-a="pin">★</button>
+          <button type="button" title="删除" class="act-del" data-a="del">✕</button>
+        </span>`;
+      el.onclick = e => {
+        const act = e.target.dataset && e.target.dataset.a;
+        if (act === 'pin') { toggleSticky(p.file, !p.sticky); return; }
+        if (act === 'del') { deleteFile(p.file); return; }
+        loadPost(p.file);
+      };
       box.appendChild(el);
     }
   }
@@ -276,6 +377,7 @@
       const j = await r.json();
       if (!j.ok) { status('保存失败：' + j.error, 'err'); return; }
       current = j.file; dirty = false;
+      try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
       status('✅ 已保存到 posts/' + j.file + '.md', 'ok');
       refreshList();
       return;
@@ -298,6 +400,7 @@
       });
       currentSha = res.content.sha;
       current = slug; dirty = false;
+      try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) {}
       $('btn-del').classList.remove('hidden');
       status('✅ 已提交！GitHub Actions 正在自动构建，约 1-2 分钟后线上生效 → ' + res.commit.html_url.replace('github.com', 'github.com') , 'ok');
       pollBuild();
@@ -403,7 +506,7 @@ ${title ? `<header class="post-head"><h1>${mdEsc(title)}</h1></header>` : ''}
   };
 
   /* ================= 事件绑定 ================= */
-  $('body').addEventListener('input', () => { dirty = true; clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 800); });
+  $('body').addEventListener('input', () => { dirty = true; updateWC(); clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 800); });
   ['f-title', 'f-slug', 'f-date', 'f-cats', 'f-tags'].forEach(id => $(id).addEventListener('input', () => dirty = true));
   $('f-draft').addEventListener('change', () => dirty = true);
   $('btn-new').onclick = newPost;
@@ -427,6 +530,8 @@ ${title ? `<header class="post-head"><h1>${mdEsc(title)}</h1></header>` : ''}
     $('btn-del').before(b);
   }
   newPost();
+  updateWC();
+  tryRestoreAutosave();
   renderPreview();
 })();
 </script>
