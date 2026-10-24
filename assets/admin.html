@@ -97,6 +97,9 @@
     .pane-preview iframe { height: 38vh; }
     .fields, .fields2 { grid-template-columns: 1fr; }
   }
+  .dev-btn { border: 1px solid var(--border); background: var(--bg-card); color: var(--text-light); border-radius: 6px; font-size: 12px; padding: 1px 7px; cursor: pointer; }
+  .dev-btn.active { background: var(--accent-grad); color: #fff; border-color: transparent; }
+  .pane-preview iframe.dev-mobile { width: 390px; margin: 0 auto; display: block; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 </style>
 </head>
 <body class="admin">
@@ -132,6 +135,10 @@
           <input type="text" id="f-slug" placeholder="文件名（英文/拼音，如 my-first-post）">
           <input type="text" id="f-date" placeholder="2026-10-24 12:00:00">
         </div>
+      </div>
+      <div>
+        <span class="label">封面图 URL（可选，显示在列表与文章顶部；可先用 🖼 上传图片再复制链接）</span>
+        <input type="text" id="f-cover" placeholder="https://... 或 /assets/uploads/img-xxx.png" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text);font-size:14px;font-family:inherit">
       </div>
       <div>
         <span class="label">分类 / 标签 / 选项</span>
@@ -174,7 +181,12 @@
           <input type="file" id="img-file" accept="image/*" class="hidden">
         </div>
         <div class="pane-preview">
-          <span class="label" style="padding:8px 12px 0;display:block">实时预览</span>
+          <span class="label" style="padding:8px 12px 0;display:block">实时预览
+            <span style="float:right">
+              <button type="button" class="dev-btn" data-w="full" title="桌面宽度">🖥</button>
+              <button type="button" class="dev-btn" data-w="mobile" title="手机宽度">📱</button>
+            </span>
+          </span>
           <iframe id="preview" title="预览"></iframe>
         </div>
       </div>
@@ -276,7 +288,7 @@
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
         current, at: Date.now(),
-        f: { title: $('f-title').value, slug: $('f-slug').value, date: $('f-date').value, cats: $('f-cats').value, tags: $('f-tags').value, sticky: $('f-sticky').checked, draft: $('f-draft').checked },
+        f: { title: $('f-title').value, slug: $('f-slug').value, date: $('f-date').value, cats: $('f-cats').value, tags: $('f-tags').value, cover: $('f-cover').value, sticky: $('f-sticky').checked, draft: $('f-draft').checked },
         body: $('body').value
       }));
     } catch (e) {}
@@ -289,7 +301,7 @@
     if (confirm(`发现 ${ago <= 1 ? '刚刚' : ago + ' 分钟前'}的未保存内容（${(d.f.title || d.current || '无标题')}），要恢复吗？\n（取消则丢弃）`)) {
       current = d.current;
       $('f-title').value = d.f.title; $('f-slug').value = d.f.slug; $('f-date').value = d.f.date;
-      $('f-cats').value = d.f.cats; $('f-tags').value = d.f.tags;
+      $('f-cats').value = d.f.cats; $('f-tags').value = d.f.tags; $('f-cover').value = d.f.cover || '';
       $('f-sticky').checked = d.f.sticky; $('f-draft').checked = d.f.draft;
       $('body').value = d.body; dirty = true;
       status('已恢复未保存的内容，记得保存', 'ok');
@@ -485,6 +497,7 @@
       '---',
       'title: ' + ($('f-title').value.trim() || $('f-slug').value.trim()),
       'date: ' + ($('f-date').value.trim() || fmtDateTime(new Date())),
+      $('f-cover').value.trim() ? 'cover: ' + $('f-cover').value.trim() : '',
       $('f-cats').value.trim() ? 'categories: ' + $('f-cats').value.trim() : '',
       tags ? 'tags: [' + tags + ']' : '',
       $('f-sticky').checked ? 'sticky: true' : '',
@@ -551,6 +564,7 @@
     $('f-slug').value = file;
     $('f-date').value = data.date || '';
     $('f-cats').value = data.categories || '';
+    $('f-cover').value = data.cover || '';
     $('f-tags').value = (data.tags || '').replace(/^\[|\]$/g, '');
     $('f-sticky').checked = data.sticky === 'true' || data.top === 'true';
     $('f-draft').checked = data.draft === 'true';
@@ -564,7 +578,7 @@
   function newPost() {
     if (dirty && !confirm('当前文章还没保存，放弃修改？')) return;
     current = null; currentSha = null;
-    ['f-title', 'f-slug', 'f-cats', 'f-tags'].forEach(id => $(id).value = '');
+    ['f-title', 'f-slug', 'f-cats', 'f-tags', 'f-cover'].forEach(id => $(id).value = '');
     const n = new Date(), p = x => String(x).padStart(2, '0');
     $('f-date').value = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}:00`;
     $('f-draft').checked = false;
@@ -586,7 +600,7 @@
     if (LOCAL) {
       const r = await fetch('/api/save', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: slug, title: $('f-title').value.trim(), date: $('f-date').value.trim(), categories: $('f-cats').value.trim(), tags: $('f-tags').value.trim(), sticky: $('f-sticky').checked, draft: $('f-draft').checked, body: $('body').value })
+        body: JSON.stringify({ file: slug, title: $('f-title').value.trim(), date: $('f-date').value.trim(), cover: $('f-cover').value.trim(), categories: $('f-cats').value.trim(), tags: $('f-tags').value.trim(), sticky: $('f-sticky').checked, draft: $('f-draft').checked, body: $('body').value })
       });
       const j = await r.json();
       if (!j.ok) { status('保存失败：' + j.error, 'err'); return; }
@@ -731,7 +745,7 @@ $('token-save').onclick = async () => {
 
   /* ================= 事件绑定 ================= */
   $('body').addEventListener('input', () => { dirty = true; updateWC(); clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 800); });
-  ['f-title', 'f-slug', 'f-date', 'f-cats', 'f-tags'].forEach(id => $(id).addEventListener('input', () => dirty = true));
+  ['f-title', 'f-slug', 'f-date', 'f-cats', 'f-tags', 'f-cover'].forEach(id => $(id).addEventListener('input', () => dirty = true));
   $('f-draft').addEventListener('change', () => dirty = true);
   $('btn-new').onclick = newPost;
   $('btn-save').onclick = save;

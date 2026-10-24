@@ -88,6 +88,7 @@ function loadPosts() {
       title: data.title || slug,
       category: data.categories || '',
       tags: (data.tags || '').replace(/^\[|\]$/g, '').split(',').map(s => s.trim()).filter(Boolean),
+      cover: data.cover || '',
       date,
       dateStr: fmtDate(date),
       permalink: permalink(date, slug),
@@ -121,22 +122,22 @@ function renderWidgets() {
   const { posts, tagCount } = SITE_DATA;
   return (LAYOUT.sidebar || []).map(w => {
     if (w === 'latest') {
-      return `<div class="widget"><h3>最新文章</h3><ul class="w-list">${posts.slice(0, 5).map(p =>
+      return `<div class="widget" data-block="latest"><h3>最新文章</h3><ul class="w-list">${posts.slice(0, 5).map(p =>
         `<li><a href="${p.permalink}">${esc(p.title)}</a></li>`).join('')}</ul></div>`;
     }
     if (w === 'tags') {
       const t = Object.keys(tagCount).sort((a, b) => tagCount[b] - tagCount[a]).slice(0, 10);
-      return `<div class="widget"><h3>标签</h3><div class="w-tags">${t.map(x =>
+      return `<div class="widget" data-block="tags"><h3>标签</h3><div class="w-tags">${t.map(x =>
         `<a class="tag" href="/tags/${encodeURIComponent(x)}/">#${esc(x)}</a>`).join('')}</div></div>`;
     }
     if (w === 'archive') {
       const years = {};
       posts.forEach(p => (years[p.date.getFullYear()] = (years[p.date.getFullYear()] || 0) + 1));
-      return `<div class="widget"><h3>归档</h3><ul class="w-list">${Object.keys(years).sort((a, b) => b - a).map(y =>
+      return `<div class="widget" data-block="archive"><h3>归档</h3><ul class="w-list">${Object.keys(years).sort((a, b) => b - a).map(y =>
         `<li><a href="/archives/">${y} 年 <small>（${years[y]} 篇）</small></a></li>`).join('')}</ul></div>`;
     }
     if (w === 'about') {
-      return `<div class="widget"><h3>关于本站</h3><p class="w-desc">${esc(site.description)}</p><p class="w-desc"><a href="/about/">了解更多 →</a></p></div>`;
+      return `<div class="widget" data-block="about"><h3>关于本站</h3><p class="w-desc">${esc(site.description)}</p><p class="w-desc"><a href="/about/">了解更多 →</a></p></div>`;
     }
     return '';
   }).join('\n');
@@ -189,6 +190,8 @@ function layout({ title, desc = site.description, body, path: cur = '/', bodyCla
 <link rel="icon" href="/assets/favicon.svg?v=${ASSET_V}" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/style.css?v=${ASSET_V}">
 <link rel="alternate" type="application/atom+xml" title="${esc(site.title)}" href="/atom.xml">
+<script type="application/json" id="site-config">${JSON.stringify(site).replace(/</g, '\\u003c')}</script>
+<script defer src="/assets/decorate.js?v=${ASSET_V}"></script>
 <script type="text/x-mathjax-config">
 MathJax.Hub.Config({ TeX: { extensions: ["color.js"] }, showProcessingMessages: false });
 </script>
@@ -247,7 +250,7 @@ ${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
 <main class="wrap">
 ${(LAYOUT.sidebar || []).length ? `<div class="page-grid"><div class="main-col">${body}</div><aside class="site-side">${renderWidgets()}</aside></div>` : body}
 </main>
-${LAYOUT.footer ? `<footer class="site-footer">
+${LAYOUT.footer ? `<footer class="site-footer" data-block="footer">
   <div class="wrap">
     <p>&copy; ${BUILD_TIME.getFullYear()} ${esc(site.author)} · 自制引擎驱动 · <a href="/atom.xml">RSS</a></p>
     <p><a href="https://github.com/${esc(site.author)}" target="_blank" rel="noopener">GitHub</a> · <a href="/guide/">帮助</a> · <a href="/admin/">✍️ 写作</a></p>
@@ -319,7 +322,9 @@ bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'}
 }
 
 function postItem(p, withExcerpt) {
+  const cover = p.cover ? `<a class="post-cover" href="${p.permalink}"><img src="${esc(p.cover)}" alt="${esc(p.title)}" loading="lazy"></a>` : '';
   return `<article class="post-item${p.sticky ? ' pinned' : ''}">
+  ${cover}
   <div class="post-date">${p.dateStr}</div>
   <div class="post-main">
     <h2 class="post-title"><a href="${p.permalink}">${esc(p.title)}</a>${p.sticky ? '<span class="pin-badge">置顶</span>' : ''}</h2>
@@ -346,13 +351,20 @@ function build() {
   SITE_DATA.tagCount = tagCount;
   const heroOn = LAYOUT.hero !== false && !(site.theme && site.theme.hero === false);
   const listCls = LAYOUT.listStyle === 'card' ? ' post-list cards' : ' post-list';
-  const heroHtml = heroOn ? `<section class="hero">
+  const heroHtml = heroOn ? `<section class="hero" data-block="hero">
   <div class="hero-blob b1"></div><div class="hero-blob b2"></div>
+  <div class="hero-avatar">${esc((site.author || 'B').charAt(0).toUpperCase())}</div>
   <h1 class="hero-title">${esc(site.title)}</h1>
   <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
+  <div class="hero-social">
+    <a href="https://github.com/${esc(site.author)}" target="_blank" rel="noopener">GitHub</a>
+    <a href="/atom.xml">RSS</a>
+    <a href="/archives/">归档</a>
+    <a href="/about/">关于我</a>
+  </div>
   <p class="hero-meta">${posts.length} 篇文章<span class="dot"></span>${Object.keys(tagCount).length} 个标签<span class="dot"></span>持续更新中</p>
 </section>` : '';
-  const postsHtml = `<section class="${listCls.trim()}">${posts.map(p => postItem(p, true)).join('\n')}</section>`;
+  const postsHtml = `<section class="${listCls.trim()}" data-block="posts">${posts.map(p => postItem(p, true)).join('\n')}</section>`;
   const mainBody = (LAYOUT.mainBlocks || ['hero', 'posts'])
     .map(b => (b === 'hero' ? heroHtml : postsHtml)).filter(Boolean).join('\n');
   writeFile('index.html', layout({
@@ -376,6 +388,7 @@ function build() {
       progress: true,
       body: `<article class="post-full">
   <header class="post-head">
+    ${p.cover ? `<div class="post-cover-full"><img src="${esc(p.cover)}" alt="${esc(p.title)}"></div>` : ''}
     <h1>${esc(p.title)}${p.sticky ? '<span class="pin-badge">置顶</span>' : ''}</h1>
     <div class="post-meta-line"><time>${p.dateStr}</time>${p.category ? ` · ${esc(p.category)}` : ''}${LAYOUT.readingTime ? ` · 约 ${p.readingTime} 分钟` : ''}${p.tags.map(t => ` · <a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
   </header>
