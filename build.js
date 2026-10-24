@@ -74,6 +74,7 @@ function stripTags(html) {
 function loadPosts() {
   const dir = path.join(ROOT, 'posts');
   const posts = [];
+  if (!fs.existsSync(dir)) return posts; // 目录不存在（如全部文章被删）时构建空站而不崩溃
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith('.md')) continue;
     const { data, body } = parseFrontMatter(fs.readFileSync(path.join(dir, f), 'utf8'));
