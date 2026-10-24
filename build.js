@@ -273,6 +273,13 @@ window.addEventListener('scroll',function(){
   if(bar){var h=document.documentElement;bar.style.transform='scaleX('+(h.scrollTop/(h.scrollHeight-h.clientHeight||1))+')';}
 },{passive:true});
 bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'})});
+document.querySelectorAll('.post-item').forEach(function(item){
+  item.addEventListener('click',function(e){
+    if(e.target.closest('a')||e.target.closest('button'))return;
+    var a=item.querySelector('.post-title a');
+    if(a)location.href=a.href;
+  });
+});
 </script>
 <script>
 (function(){
@@ -362,9 +369,9 @@ function build() {
   SITE_DATA.tagCount = tagCount;
   const heroOn = LAYOUT.hero !== false && !(site.theme && site.theme.hero === false);
   const listCls = LAYOUT.listStyle === 'card' ? ' post-list cards' : ' post-list';
-  const heroHtml = heroOn ? `<section class="hero" data-block="hero">
+  const heroBg = (site.theme && site.theme.heroImage) || '/assets/hero-bg.svg';
+  const heroHtml = heroOn ? `<section class="hero" data-block="hero" style="background-image:url('${esc(heroBg)}')">
   <div class="hero-blob b1"></div><div class="hero-blob b2"></div>
-  <div class="hero-avatar">${esc((site.author || 'B').charAt(0))}</div>
   <h1 class="hero-title">${esc(site.title)}</h1>
   <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
   <div class="hero-social">

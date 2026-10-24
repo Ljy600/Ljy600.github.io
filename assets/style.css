@@ -159,8 +159,33 @@ a:hover { color: var(--accent-2); }
 
 main.wrap { min-height: calc(100vh - 280px); padding-top: 34px; padding-bottom: 64px; }
 
-/* ---------- 首页 Hero ---------- */
-.hero { position: relative; overflow: hidden; padding: 46px 0 34px; margin-bottom: 10px; }
+/* ---------- 首页 Hero（背景图版） ---------- */
+.hero {
+  position: relative; overflow: hidden; padding: 86px 0 64px; margin-bottom: 10px;
+  background-size: cover; background-position: center;
+  border-radius: 16px; box-shadow: var(--shadow);
+}
+/* 背景图上的渐变遮罩，保证文字可读 */
+.hero::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(8, 42, 44, 0.45), rgba(8, 42, 44, 0.32) 55%, rgba(8, 42, 44, 0.5));
+  pointer-events: none;
+}
+.hero > *:not(.hero-blob) { position: relative; z-index: 2; }
+.hero-title {
+  background: none; color: #fff; -webkit-text-fill-color: #fff;
+  text-align: center; text-shadow: 0 2px 18px rgba(0, 20, 20, 0.5);
+}
+.hero-sub, .hero-meta { text-align: center; color: rgba(244, 249, 248, 0.92) !important; -webkit-text-fill-color: rgba(244, 249, 248, 0.92); }
+.hero-meta { color: rgba(244, 249, 248, 0.8) !important; -webkit-text-fill-color: rgba(244, 249, 248, 0.8); }
+.hero-meta .dot { background: #5eead4; }
+.hero-social { justify-content: center; }
+.hero-social a {
+  background: rgba(255, 255, 255, 0.14); color: #f4f9f8 !important; -webkit-text-fill-color: #f4f9f8;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+.hero-social a:hover { background: rgba(255, 255, 255, 0.28); }
 .hero-blob {
   position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.5; pointer-events: none;
   background: var(--accent-weak);
@@ -180,7 +205,7 @@ main.wrap { min-height: calc(100vh - 280px); padding-top: 34px; padding-bottom: 
 
 /* ---------- 文章列表 ---------- */
 .post-list { display: flex; flex-direction: column; }
-.post-item { display: flex; gap: 22px; padding: 26px 6px; border-bottom: 1px solid var(--border); border-radius: 8px; transition: background 0.2s; }
+.post-item { display: flex; gap: 22px; padding: 26px 6px; cursor: pointer; border-bottom: 1px solid var(--border); border-radius: 8px; transition: background 0.2s; }
 .post-item:hover { background: color-mix(in srgb, var(--accent-weak) 40%, transparent); }
 .post-item.pinned { background: color-mix(in srgb, var(--accent-weak) 30%, transparent); }
 .post-date {

@@ -1,5 +1,5 @@
 {
-  "title": "Ljy600's Blog",
+  "title": "敬原的博客",
   "subtitle": "记录与分享",
   "description": "敬原的个人博客：建站笔记、教程与日常记录",
   "author": "敬原",
@@ -48,7 +48,8 @@
     "width": "m",
     "font": "m",
     "hero": true,
-    "fontFace": "auto"
+    "fontFace": "auto",
+    "heroImage": "/assets/hero-bg.svg"
   },
   "postsPerPage": 0,
   "github": "Ljy600"
