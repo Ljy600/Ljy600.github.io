@@ -39,6 +39,7 @@
   .icon-btn { width: 30px; height: 30px; flex: 0 0 30px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-light); cursor: pointer; font-size: 13px; }
   .icon-btn:hover { color: var(--accent); border-color: var(--accent); }
   .icon-btn.del:hover { color: #d97706; border-color: #d97706; }
+  .icon-btn.armed { color: #fff !important; background: #d97706; border-color: #d97706; width: auto; padding: 0 8px; font-size: 12px; }
   button.btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 14px; cursor: pointer; font-family: inherit; }
   button.btn:hover { border-color: var(--accent); color: var(--accent); }
   button.btn.primary { background: var(--accent-grad); border-color: transparent; color: #fff; }
@@ -423,7 +424,14 @@
         if (!act) return;
         if (act === 'edit') await openPageEditor(p.file);
         if (act === 'del') {
-          if (!confirm('确定删除页面「' + p.file + '」？')) return;
+          // 两步确认：第一次点变"确认"，再点才删（不依赖弹窗）
+          const b = e.target;
+          if (!b.dataset.armed) {
+            b.dataset.armed = '1'; b.textContent = '确认'; b.classList.add('armed');
+            setTimeout(() => { if (b.isConnected) { b.dataset.armed = ''; b.textContent = '✕'; b.classList.remove('armed'); } }, 3000);
+            return;
+          }
+          b.dataset.armed = '';
           try {
             if (LOCAL) await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: p.file, target: 'page' }) });
             else {

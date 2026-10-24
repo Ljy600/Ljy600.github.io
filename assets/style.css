@@ -415,14 +415,14 @@ body.has-side .wrap { max-width: calc(var(--content-width) + 280px); }
 .side-item { position: relative; padding-right: 78px; }
 .row-acts {
   position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-  display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s;
+  display: flex; gap: 4px; opacity: 1;
 }
-.side-item:hover .row-acts { opacity: 1; }
 .row-acts button {
   width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 6px;
   background: var(--bg-card); color: var(--text-light); font-size: 12px;
   cursor: pointer; line-height: 1; padding: 0;
 }
+.row-acts button.armed { color: #fff; background: #d97706; border-color: #d97706; width: auto; padding: 0 6px; font-size: 11px; }
 .row-acts button:hover { color: var(--accent); border-color: var(--accent); }
 .row-acts button.on { color: var(--accent); border-color: var(--accent); background: var(--accent-weak); }
 .row-acts button:hover.act-del { color: #d97706; border-color: #d97706; }

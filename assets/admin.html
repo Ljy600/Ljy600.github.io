@@ -237,8 +237,15 @@
     } catch (e) { status('操作失败：' + e.message, 'err'); }
   }
 
-  async function deleteFile(file) {
-    if (!confirm('确定删除文章「' + file + '」？此操作不可恢复。')) return;
+  async function deleteFile(file, btn) {
+    // 两步确认：第一次点击把按钮变成"确认"，3 秒内再点一次才真正删除（不依赖弹窗）
+    if (btn && !btn.dataset.armed) {
+      btn.dataset.armed = '1';
+      btn.textContent = '确认';
+      btn.classList.add('armed');
+      setTimeout(() => { if (btn.isConnected) { btn.dataset.armed = ''; btn.textContent = '✕'; btn.classList.remove('armed'); } }, 3000);
+      return;
+    }
     try {
       if (LOCAL) {
         const r = await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file }) });
@@ -255,6 +262,11 @@
       if (current === file) newPost(); else refreshList();
     } catch (e) { status('删除失败：' + e.message, 'err'); }
   }
+  // "删除本文"按钮也走两步确认
+  $('btn-del').addEventListener('click', () => {
+    if (!current) { status('没有选中的文章', 'err'); return; }
+    deleteFile(current, $('btn-del'));
+  });
 
   /* ---- 自动保存草稿（防丢稿） ---- */
   const AUTOSAVE_KEY = 'blog_editor_autosave';
@@ -506,7 +518,7 @@
       el.onclick = e => {
         const act = e.target.dataset && e.target.dataset.a;
         if (act === 'pin') { toggleSticky(p.file, !p.sticky); return; }
-        if (act === 'del') { deleteFile(p.file); return; }
+        if (act === 'del') { deleteFile(p.file, e.target); return; }
         loadPost(p.file);
       };
       box.appendChild(el);
@@ -704,7 +716,7 @@ ${title ? `<header class="post-head"><h1>${mdEsc(title)}</h1></header>` : ''}
   $('f-draft').addEventListener('change', () => dirty = true);
   $('btn-new').onclick = newPost;
   $('btn-save').onclick = save;
-  $('btn-del').onclick = removePost;
+  
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); save(); }
   });
