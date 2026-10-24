@@ -1,8 +1,8 @@
 {
   "title": "Ljy600's Blog",
   "subtitle": "记录与分享",
-  "description": "Ljy600 的个人博客：建站笔记、教程与日常记录",
-  "author": "Ljy600",
+  "description": "敬原的个人博客：建站笔记、教程与日常记录",
+  "author": "敬原",
   "url": "https://ljy600.github.io",
   "nav": [
     {
@@ -47,7 +47,9 @@
     "accent": "",
     "width": "m",
     "font": "m",
-    "hero": true
+    "hero": true,
+    "fontFace": "auto"
   },
-  "postsPerPage": 0
+  "postsPerPage": 0,
+  "github": "Ljy600"
 }

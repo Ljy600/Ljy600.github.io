@@ -177,6 +177,10 @@ function layout({ title, desc = site.description, body, path: cur = '/', bodyCla
   }
   if ({ s: 1, m: 1, l: 1 }[themeCfg.width]) ownerVars.push(`--content-width:${{ s: '680px', m: '768px', l: '920px' }[themeCfg.width]}`);
   if ({ s: 1, m: 1, l: 1 }[themeCfg.font]) ownerVars.push(`--post-font:${{ s: '15.5px', m: '16.5px', l: '18px' }[themeCfg.font]}`);
+  if (themeCfg.fontFace && themeCfg.fontFace !== 'auto') {
+    var stacks = { serif: '"Noto Serif SC","Source Han Serif SC",Georgia,"STSong","SimSun",serif', kai: '"KaiTi","STKaiti","楷体","DFKai-SB",serif', hei: '"Microsoft YaHei","PingFang SC","SimHei",sans-serif' };
+    if (stacks[themeCfg.fontFace]) ownerVars.push('--body-font:' + stacks[themeCfg.fontFace]);
+  }
   const ownerStyle = ownerVars.length ? `<style>:root{${ownerVars.join(';')}}</style>\n` : '';
 
   return `<!DOCTYPE html>
@@ -240,6 +244,9 @@ ${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
   <div class="ui-row"><label>正文字号</label><div class="seg" data-key="font">
     <button type="button" data-val="s">小</button><button type="button" data-val="m">中</button><button type="button" data-val="l">大</button>
   </div></div>
+  <div class="ui-row"><label>字体</label><div class="seg" data-key="face">
+    <button type="button" data-val="auto">默认</button><button type="button" data-val="serif">衬线</button><button type="button" data-val="kai">楷体</button><button type="button" data-val="hei">黑体</button>
+  </div></div>
   <div class="ui-row"><label>深色模式</label><div class="seg" data-key="theme">
     <button type="button" data-val="auto">自动</button><button type="button" data-val="light">浅色</button><button type="button" data-val="dark">深色</button>
   </div></div>
@@ -254,7 +261,7 @@ ${(LAYOUT.sidebar || []).length ? `<div class="page-grid"><div class="main-col">
 ${LAYOUT.footer ? `<footer class="site-footer" data-block="footer">
   <div class="wrap">
     <p>&copy; ${BUILD_TIME.getFullYear()} ${esc(site.author)} · 自制引擎驱动 · <a href="/atom.xml">RSS</a></p>
-    <p><a href="https://github.com/${esc(site.author)}" target="_blank" rel="noopener">GitHub</a> · <a href="/guide/">帮助</a> · <a href="/admin/">✍️ 写作</a></p>
+    <p><a href="https://github.com/${esc(site.github || site.author)}" target="_blank" rel="noopener">GitHub</a> · <a href="/guide/">帮助</a> · <a href="/admin/">✍️ 写作</a></p>
   </div>
 </footer>` : ''}
 <button id="backtop" title="回到顶部">&uarr;</button>
@@ -271,7 +278,8 @@ bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'}
 (function(){
   var ACC={default:'#0d7377',blue:'#2563eb',violet:'#7c3aed',rose:'#e11d48',amber:'#d97706',green:'#16a34a'};
   var WIDTH={s:'680px',m:'768px',l:'920px'},FONT={s:'15.5px',m:'16.5px',l:'18px'};
-  var P={theme:'auto',accent:'default',width:'m',font:'m'};
+  var P={theme:'auto',accent:'default',width:'m',font:'m',face:'auto'};
+  var FACE={serif:'"Noto Serif SC","Source Han Serif SC",Georgia,"STSong","SimSun",serif',kai:'"KaiTi","STKaiti","楷体","DFKai-SB",serif',hei:'"Microsoft YaHei","PingFang SC","SimHei",sans-serif'};
   try{var s=JSON.parse(localStorage.getItem('blog_ui_prefs')||'{}');Object.keys(P).forEach(function(k){if(s[k])P[k]=s[k]});}catch(_){}
   var root=document.documentElement;
   function hx(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(function(c){return c+c}).join('');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
@@ -285,6 +293,8 @@ bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'}
       root.style.setProperty('--accent-2',lighten(hex,0.22));
       root.style.setProperty('--accent-grad','linear-gradient(120deg,'+hex+','+lighten(hex,0.22)+')');
       root.style.setProperty('--accent-weak',rgba(hex,0.09));}
+    if(P.face==='auto')root.style.removeProperty('--body-font');
+    else root.style.setProperty('--body-font',FACE[P.face]||FACE.serif);
     root.style.setProperty('--content-width',WIDTH[P.width]||WIDTH.m);
     root.style.setProperty('--post-font',FONT[P.font]||FONT.m);
     var dark=P.theme==='dark'||(P.theme!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -310,7 +320,7 @@ bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'}
       P.accent=sw.getAttribute('data-accent');save();
     })});
     var reset=document.getElementById('ui-reset');
-    if(reset)reset.addEventListener('click',function(){P={theme:'auto',accent:'default',width:'m',font:'m'};save();});
+    if(reset)reset.addEventListener('click',function(){P={theme:'auto',accent:'default',width:'m',font:'m',face:'auto'};save();});
     document.addEventListener('click',function(){panel.hidden=true;});
     document.addEventListener('keydown',function(e){if(e.key==='Escape')panel.hidden=true;});
   }
@@ -354,11 +364,11 @@ function build() {
   const listCls = LAYOUT.listStyle === 'card' ? ' post-list cards' : ' post-list';
   const heroHtml = heroOn ? `<section class="hero" data-block="hero">
   <div class="hero-blob b1"></div><div class="hero-blob b2"></div>
-  <div class="hero-avatar">${esc((site.author || 'B').charAt(0).toUpperCase())}</div>
+  <div class="hero-avatar">${esc((site.author || 'B').charAt(0))}</div>
   <h1 class="hero-title">${esc(site.title)}</h1>
   <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
   <div class="hero-social">
-    <a href="https://github.com/${esc(site.author)}" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/${esc(site.github || site.author)}" target="_blank" rel="noopener">GitHub</a>
     <a href="/atom.xml">RSS</a>
     <a href="/archives/">归档</a>
     <a href="/about/">关于我</a>
