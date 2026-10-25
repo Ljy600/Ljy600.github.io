@@ -55,6 +55,8 @@
   .token-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--accent-weak); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 13.5px; }
   .token-bar input { flex: 1; min-width: 200px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-size: 14px; }
   .hidden { display: none !important; }
+  body.locked > *:not(.gate) { display: none !important; }
+  body.locked .gate { display: flex !important; }
   .page-editor { margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 14px; }
   .page-editor input[type=text] { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit; margin-bottom: 8px; }
   .page-editor textarea { width: 100%; min-height: 200px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.7; font-family: Consolas, "Microsoft YaHei", monospace; resize: vertical; }
@@ -81,6 +83,15 @@
   .zchip.ghost { outline: 2px dashed var(--accent); outline-offset: -2px; }
 </style>
 </head>
+<div id="gate" class="gate hidden">
+  <div class="gate-box">
+    <h2>🔒 管理员登录</h2>
+    <p>此后台已启用密码保护</p>
+    <input type="password" id="gate-pw" placeholder="管理员密码">
+    <button type="button" id="gate-go">进入后台</button>
+    <div class="gate-err" id="gate-err"></div>
+  </div>
+</div>
 <body class="admin">
 <div class="wrap">
   <div class="admin-bar">
@@ -531,6 +542,8 @@
     siteConfig.closed = $('lay-closed').checked;
     siteConfig.closeNotice = $('close-notice').value.trim() || '博客维护中，马上回来。';
     siteConfig.closeUntil = $('close-until').value.trim();
+    const pw = $('admin-pw').value;
+    if (pw) siteConfig.adminPasswordHash = await sha256hex(pw);
     const json = JSON.stringify(siteConfig, null, 2);
     try {
       if (LOCAL) {
@@ -585,6 +598,20 @@
 
   $('lay-closed').addEventListener('change', () => { document.getElementById('closed-extra').classList.toggle('hidden', !$('lay-closed').checked); });
 
+  async function sha256hex(s) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+  function gateCheckL() {
+    const hash = (siteConfig && siteConfig.adminPasswordHash) || "";
+    if (!hash || sessionStorage.getItem("admin_auth") === hash) return;
+    document.body.classList.add("locked");
+    document.getElementById("gate").classList.remove("hidden");
+    const go = async () => {
+      const v = document.getElementById("gate-pw").value;
+      if (await sha256hex(v) === hash) { sessionStorage.setItem("admin_auth", hash); document.body.classList.remove("locked"); }
+      else document.getElementById("gate-err").textContent = "密码不对，再试试";
+    };
+    document.getElementById("gate-go").onclick = go;
+    document.getElementById("gate-pw").onkeydown = e => { if (e.key === "Enter") go(); };
+  }
   /* ---------- 启动 ---------- */
   (async () => {
     if (!LOCAL && !TOKEN) showToken();
@@ -605,4 +632,10 @@
 })();
 </script>
 </body>
-</html>
+</html>    <div class="card">
+      <h2>管理员密码</h2>
+      <p class="hint">给写作后台和布局台上锁（SHA-256 哈希存储）；留空表示不修改</p>
+      <input type="password" id="admin-pw" placeholder="设置新密码" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px">
+      <p class="hint" id="pw-status" style="margin:8px 0 0">未设置密码</p>
+    </div>
+

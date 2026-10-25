@@ -68,6 +68,8 @@
   }
   .token-bar code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
   .hidden { display: none !important; }
+  body.locked > *:not(.gate) { display: none !important; }
+  body.locked .gate { display: flex !important; }
   .side-hint { margin: 10px 8px; font-size: 13px; color: var(--text-light); line-height: 1.9; }
   /* ---- 编辑器 v2：工具栏 / 模式 / 专注 ---- */
   .wrap { max-width: 1180px; } /* 后台需要更宽的工作区 */
@@ -102,6 +104,15 @@
   .pane-preview iframe.dev-mobile { width: 390px; margin: 0 auto; display: block; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
 </style>
 </head>
+<div id="gate" class="gate hidden">
+  <div class="gate-box">
+    <h2>🔒 管理员登录</h2>
+    <p>此后台已启用密码保护</p>
+    <input type="password" id="gate-pw" placeholder="管理员密码">
+    <button type="button" id="gate-go">进入后台</button>
+    <div class="gate-err" id="gate-err"></div>
+  </div>
+</div>
 <body class="admin">
 <div class="wrap">
   <div class="admin-bar">
@@ -759,6 +770,26 @@ $('token-save').onclick = async () => {
   });
   window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
+  /* ---- 管理员密码锁 ---- */
+  async function sha256hex(s) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+  async function gateCheck() {
+    let hash = "";
+    try {
+      if (LOCAL) hash = (JSON.parse(await (await fetch("/api/config")).text()).adminPasswordHash) || "";
+      else { const r = await fetch("https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/main/site.json"); if (r.ok) hash = (JSON.parse(await r.text()).adminPasswordHash) || ""; }
+    } catch (e) {}
+    if (!hash || sessionStorage.getItem("admin_auth") === hash) return;
+    document.body.classList.add("locked");
+    document.getElementById("gate").classList.remove("hidden");
+    const go = async () => {
+      const v = document.getElementById("gate-pw").value;
+      if (await sha256hex(v) === hash) { sessionStorage.setItem("admin_auth", hash); document.body.classList.remove("locked"); }
+      else document.getElementById("gate-err").textContent = "密码不对，再试试";
+    };
+    document.getElementById("gate-go").onclick = go;
+    document.getElementById("gate-pw").onkeydown = e => { if (e.key === "Enter") go(); };
+  }
+  gateCheck();
   /* ================= 启动 ================= */
   if (!LOCAL) {
     $('btn-save').textContent = '保存并发布（Ctrl+S）';

@@ -173,9 +173,9 @@ const ASSET_V = BUILD_TIME.getTime();
 const GISCUS_HTML = (function () {
   const gc = site.comments && site.comments.giscus;
   if (!gc || !gc.repoId || !gc.categoryId) {
-    return '<section class="comments"><h2>评论</h2><p class="comments-hint">评论区即将开放（giscus 配置中）。</p></section>';
+    return '<section class="comments"><h2>评论</h2><div class="comments-login-tip">💬 评论区即将开放。开放后读者使用 <a href="https://github.com/login" target="_blank" rel="noopener">GitHub 账号登录</a> 即可留言——这就是本站的“访客登录”方式，无需注册新账户。</div></section>';
   }
-  return '<section class="comments"><h2>评论</h2>' +
+  return '<section class="comments"><h2>评论</h2><div class="comments-login-tip">💬 留言请使用右上角 <b>GitHub 账号登录</b>——登录后即可评论，无需注册本站账户。</div>' +
     '<script src="https://giscus.app/client.js"' +
     ' data-repo="' + esc(gc.repo) + '"' +
     ' data-repo-id="' + esc(gc.repoId) + '"' +
@@ -517,9 +517,20 @@ function build() {
 
   // 独立页面（关于等）
   pages.forEach(pg => {
+    const isAbout = pg.slug === 'about';
+    const profile = isAbout ? `<section class="profile-card">
+  <div class="profile-avatar">${esc((site.author || 'B').charAt(0))}</div>
+  <h1 class="profile-name">${esc(site.author)}</h1>
+  <p class="profile-desc">${esc(site.description)}</p>
+  <div class="profile-social">
+    <a href="https://github.com/${esc(site.github || site.author)}" target="_blank" rel="noopener">GitHub</a>
+    <a href="/atom.xml">RSS 订阅</a>
+  </div>
+  <div class="profile-tags">${((site.profile && site.profile.tags) || []).map(t => `<span class="profile-tag">${esc(t)}</span>`).join('')}</div>
+</section>` : '';
     writeFile(`${pg.slug}/index.html`, layout({
       title: `${pg.title} | ${site.title}`, path: `/${pg.slug}/`,
-      body: `<article class="post-full"><div class="post-body">${pg.html}</div></article>`
+      body: `${profile}<article class="post-full"><div class="post-body">${pg.html}</div></article>`
     }));
   });
 
