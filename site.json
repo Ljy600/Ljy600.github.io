@@ -8,6 +8,26 @@
     {
       "label": "首页",
       "href": "/"
+    },
+    {
+      "label": "归档",
+      "href": "/archives/"
+    },
+    {
+      "label": "标签",
+      "href": "/tags/"
+    },
+    {
+      "label": "关于",
+      "href": "/about/"
+    },
+    {
+      "label": "友情链接",
+      "href": "/links/"
+    },
+    {
+      "label": "专栏",
+      "href": "/columns/"
     }
   ],
   "layout": {
@@ -24,7 +44,7 @@
     "sidebar": [
       "latest",
       "tags",
-      "about"
+      "archive"
     ]
   },
   "theme": {
@@ -48,5 +68,31 @@
   "closed": false,
   "closeNotice": "目前未完成，施工中……",
   "closeUntil": "",
-  "adminPasswordHash": "21b3d01610c38ad88c4bcbc46ef91db6935b5232ca16cbfdcd0ee5f6a6248c18"
+  "adminPasswordHash": "21b3d01610c38ad88c4bcbc46ef91db6935b5232ca16cbfdcd0ee5f6a6248c18",
+  "columns": [
+    {
+      "name": "建站手记",
+      "desc": "从一篇洛谷文章到自制博客引擎",
+      "category": "建站"
+    },
+    {
+      "name": "博客折腾记",
+      "desc": "主题、功能与日常维护",
+      "category": "博客维护"
+    },
+    {
+      "name": "教程与技巧",
+      "desc": "公式、写作与工具使用",
+      "category": "教程"
+    }
+  ],
+  "profile": {
+    "tags": [
+      "建站",
+      "自制博客引擎",
+      "LaTeX",
+      "写作",
+      "折腾"
+    ]
+  }
 }

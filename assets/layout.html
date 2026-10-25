@@ -555,6 +555,18 @@
         status('✅ 布局与页面已保存并构建，刷新博客即可看到', 'ok');
       } else {
         if (!TOKEN) { showToken(); return; }
+        status('正在检查配置版本…');
+        try {
+          const latest = await gh('GET', `/repos/\${OWNER}/\${REPO}/contents/site.json`);
+          const remoteCfg = JSON.parse(b64d(latest.content));
+          const localSig = JSON.stringify(siteConfig);
+          const remoteSig = JSON.stringify(remoteCfg);
+          if (localSig !== remoteSig) {
+            if (confirm('配置刚在别处被更新过。点击确定刷新页面后重做你的修改（你的未保存改动会丢失，请先截图记住）。')) location.reload();
+            return;
+          }
+          configSha = latest.sha;
+        } catch (e) { /* 网络抖动时跳过检查，直接尝试保存 */ }
         status('正在提交 site.json 到 GitHub…');
         let sha = configSha;
         let lastErr = null;
