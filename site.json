@@ -8,10 +8,6 @@
     {
       "label": "首页",
       "href": "/"
-    },
-    {
-      "label": "专栏",
-      "href": "/zhuanlan"
     }
   ],
   "layout": {
