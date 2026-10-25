@@ -47,5 +47,6 @@
   },
   "closed": true,
   "closeNotice": "目前未完成，施工中……",
-  "closeUntil": ""
+  "closeUntil": "",
+  "adminPasswordHash": "21b3d01610c38ad88c4bcbc46ef91db6935b5232ca16cbfdcd0ee5f6a6248c18"
 }
