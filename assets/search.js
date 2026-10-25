@@ -5,9 +5,10 @@
 (function () {
   'use strict';
   var DATA = null;
-  var modal, input, listBox;
+  var modal = null, input = null, listBox = null;
 
   function build() {
+    if (modal) return;
     modal = document.createElement('div');
     modal.className = 'search-modal';
     modal.hidden = true;
@@ -31,12 +32,6 @@
       else if (e.key === 'ArrowUp') { e.preventDefault(); if (items[idx - 1]) setActive(items[idx - 1]); }
       else if (e.key === 'Enter') { if (cur) location.href = cur.getAttribute('data-url'); }
     });
-    document.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open(); }
-      if (e.key === 'Escape' && !modal.hidden) close();
-    });
-    var btn = document.getElementById('search-btn');
-    if (btn) btn.addEventListener('click', open);
   }
   function setActive(el) {
     listBox.querySelectorAll('.search-item').forEach(function (x) { x.classList.remove('active'); });
@@ -44,13 +39,13 @@
     el.scrollIntoView({ block: 'nearest' });
   }
   function open() {
-    if (!modal) build();
+    build();
     modal.hidden = false;
     input.value = '';
     render();
     setTimeout(function () { input.focus(); }, 50);
   }
-  function close() { modal.hidden = true; }
+  function close() { if (modal) modal.hidden = true; }
 
   function render() {
     var q = input.value.trim().toLowerCase();
@@ -85,4 +80,12 @@
       el.addEventListener('click', function () { location.href = el.getAttribute('data-url'); });
     });
   }
+
+  /* 全局入口：导航 🔍 按钮与 Ctrl+K / Cmd+K（监听必须在全局，不能藏在 build 里） */
+  var btn = document.getElementById('search-btn');
+  if (btn) btn.addEventListener('click', function () { open(); });
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open(); }
+    if (e.key === 'Escape') close();
+  });
 })();

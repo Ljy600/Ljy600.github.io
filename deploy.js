@@ -31,7 +31,8 @@ if (!fs.existsSync(path.join(ROOT, '.git'))) {
 // 2. 提交本地改动
 sh('git add -A');
 const stamp = new Date().toLocaleString('zh-CN', { hour12: false });
-if (ok('git diff --cached --quiet')) {
+const unpushed = out('git rev-list origin/main..HEAD');
+if (ok('git diff --cached --quiet') && !unpushed) {
   console.log('源码无变化，无需推送。');
 } else {
   sh(`git commit -m "更新：${stamp}"`);
