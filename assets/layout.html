@@ -557,8 +557,21 @@
         if (!TOKEN) { showToken(); return; }
         status('正在提交 site.json 到 GitHub…');
         let sha = configSha;
-        if (!sha) { try { sha = (await gh('GET', `/repos/${OWNER}/${REPO}/contents/site.json`)).sha; } catch (e) {} }
-        await gh('PUT', `/repos/${OWNER}/${REPO}/contents/site.json`, { message: '更新布局与导航', content: b64e(json), ...(sha ? { sha } : {}) });
+        let lastErr = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            if (!sha) { try { sha = (await gh('GET', `/repos/${OWNER}/${REPO}/contents/site.json`)).sha; } catch (e) {} }
+            const res = await gh('PUT', `/repos/${OWNER}/${REPO}/contents/site.json`, { message: '更新布局与导航', content: b64e(json), ...(sha ? { sha } : {}) });
+            configSha = res.content.sha;
+            lastErr = null;
+            break;
+          } catch (e) {
+            lastErr = e;
+            if (/does not match|conflict|409/i.test(String(e.message))) { sha = null; continue; } // 版本冲突：拿最新 sha 重试
+            throw e;
+          }
+        }
+        if (lastErr) throw lastErr;
         status('✅ 已提交！GitHub Actions 正在自动构建，1-2 分钟后生效', 'ok');
       }
     } catch (e) { status('保存失败：' + e.message, 'err'); }
