@@ -21,9 +21,10 @@
     input = modal.querySelector('#search-input');
     listBox = modal.querySelector('#search-results');
 
-    modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+    modal.addEventListener('click', function (e) { if (e.target === modal || e.target.classList.contains('search-results') || e.target.classList.contains('search-box')) close(); });
     modal.querySelector('.search-esc').addEventListener('click', close);
     input.addEventListener('input', render);
+    input.addEventListener('keyup', function (e) { if (e.key === 'Escape' || e.keyCode === 27) close(); });
     input.addEventListener('keydown', function (e) {
       var items = listBox.querySelectorAll('.search-item');
       var cur = listBox.querySelector('.search-item.active');
@@ -84,8 +85,9 @@
   /* 全局入口：导航 🔍 按钮与 Ctrl+K / Cmd+K（监听必须在全局，不能藏在 build 里） */
   var btn = document.getElementById('search-btn');
   if (btn) btn.addEventListener('click', function () { open(); });
-  document.addEventListener('keydown', function (e) {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open(); }
-    if (e.key === 'Escape') close();
-  });
+  // 捕获阶段监听（最早收到事件），并覆盖 keyCode/which 旧路径，杜绝输入法吞键
+  window.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'k') { e.preventDefault(); open(); }
+    if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) { e.preventDefault(); e.stopPropagation(); close(); }
+  }, true);
 })();
