@@ -21,7 +21,7 @@ const BUILD_TIME = new Date();
 
 // Markdown 渲染器抽到了 markdown.js，与 serve.js 的后台实时预览共用同一实现
 const md = require('./markdown');
-const { esc, parseFrontMatter, parseDate, fmtDate, pad, renderMarkdown } = md;
+const { esc, parseFrontMatter, parseDate, fmtDate, fmtDateTime, pad, renderMarkdown } = md;
 
 // 布局配置（site.json → layout）：控制各 UI 区块的位置与去留
 const LAYOUT = Object.assign({
@@ -96,7 +96,8 @@ function loadPosts() {
       fullHtml,
       excerpt: excerpt.length > 160 ? excerpt.slice(0, 160) + '……' : excerpt,
       readingTime: Math.max(1, Math.round(fullText.length / 400)), // 中文约 400 字/分钟
-      sticky: data.sticky === 'true' || data.top === 'true' // 置顶
+      sticky: data.sticky === 'true' || data.top === 'true', // 置顶
+      updated: data.updated ? fmtDateTime(parseDate(data.updated)) : ''
     });
   }
   // 置顶文章排最前（置顶内部仍按时间倒序），其余按时间倒序
@@ -154,9 +155,36 @@ function buildToc(html) {
     .map(t => `<li><a href="#${t.id}">${esc(t.text)}</a></li>`).join('')}</ul></details>\n`;
 }
 
+/* ---------- 悬浮目录（大屏固定显示） ---------- */
+
+function tocFloat(html) {
+  const items = [...html.matchAll(/<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g)]
+    .map(m => ({ id: m[1], text: m[2].replace(/<[^>]+>/g, '').trim() }));
+  if (items.length < 3) return '';
+  return `<nav class="toc-float" id="toc-float"><div class="toc-float-title">目录</div><ul>${items
+    .map(t => `<li><a href="#${t.id}">${esc(t.text)}</a></li>`).join('')}</ul></nav>`;
+}
+
 /* ---------- 模板 ---------- */
 
 const ASSET_V = BUILD_TIME.getTime();
+
+// 评论区（giscus）：在 site.json 的 comments.giscus 里配置 repoId / categoryId 后启用
+const GISCUS_HTML = (function () {
+  const gc = site.comments && site.comments.giscus;
+  if (!gc || !gc.repoId || !gc.categoryId) {
+    return '<section class="comments"><h2>评论</h2><p class="comments-hint">评论区即将开放（giscus 配置中）。</p></section>';
+  }
+  return '<section class="comments"><h2>评论</h2>' +
+    '<script src="https://giscus.app/client.js"' +
+    ' data-repo="' + esc(gc.repo) + '"' +
+    ' data-repo-id="' + esc(gc.repoId) + '"' +
+    ' data-category="' + esc(gc.category || 'Announcements') + '"' +
+    ' data-category-id="' + esc(gc.categoryId) + '"' +
+    ' data-mapping="pathname" data-strict="0" data-reactions-enabled="1"' +
+    ' data-emit-metadata="0" data-input-position="top" data-theme="preferred_color_scheme"' +
+    ' data-lang="zh-CN" data-loading="lazy" crossorigin="anonymous" async></scr' + 'ipt></section>';
+})();
 
 function layout({ title, desc = site.description, body, path: cur = '/', bodyClass = '', progress = false }) {
   const nav = (site.nav || []).map(n =>
@@ -197,6 +225,8 @@ function layout({ title, desc = site.description, body, path: cur = '/', bodyCla
 <link rel="alternate" type="application/atom+xml" title="${esc(site.title)}" href="/atom.xml">
 <script type="application/json" id="site-config">${JSON.stringify(site).replace(/</g, '\\u003c')}</script>
 <script defer src="/assets/decorate.js?v=${ASSET_V}"></script>
+<script defer src="/assets/search.js?v=${ASSET_V}"></script>
+<script defer src="/assets/site-extras.js?v=${ASSET_V}"></script>
 <script type="text/x-mathjax-config">
 MathJax.Hub.Config({ TeX: { extensions: ["color.js"] }, showProcessingMessages: false });
 </script>
@@ -226,13 +256,13 @@ ${ownerStyle}<link id="hljs-light" rel="stylesheet" media="(prefers-color-scheme
 ${progress ? '<div class="progress"></div>\n' : ''}<header class="site-header">
   <div class="wrap header-inner">
     <a class="site-title" href="/">${esc(site.title)}<span class="site-sub">${esc(site.subtitle)}</span></a>
-    <nav class="site-nav">${nav}<button type="button" class="ui-toggle" id="ui-toggle" title="外观设置" aria-label="外观设置">⚙</button>
+    <nav class="site-nav"><button type="button" class="search-toggle" id="search-btn" title="搜索 (Ctrl+K)">🔍</button>${nav}<button type="button" class="ui-toggle" id="ui-toggle" title="外观设置" aria-label="外观设置">⚙</button>
 <div class="ui-panel" id="ui-panel" hidden>
   <h3>外观设置</h3>
   <p class="ui-hint">仅保存在你自己的浏览器里</p>
   <div class="ui-row"><label>主题色</label><div class="swatches">
-    <button type="button" class="swatch" data-accent="default" title="默认青" style="background:#0d7377"></button>
-    <button type="button" class="swatch" data-accent="blue" title="蓝" style="background:#2563eb"></button>
+    <button type="button" class="swatch" data-accent="default" title="默认蓝" style="background:#2e80dd"></button>
+    <button type="button" class="swatch" data-accent="blue" title="深青" style="background:#0d7377"></button>
     <button type="button" class="swatch" data-accent="violet" title="紫" style="background:#7c3aed"></button>
     <button type="button" class="swatch" data-accent="rose" title="玫红" style="background:#e11d48"></button>
     <button type="button" class="swatch" data-accent="amber" title="琥珀" style="background:#d97706"></button>
@@ -261,9 +291,11 @@ ${(LAYOUT.sidebar || []).length ? `<div class="page-grid"><div class="main-col">
 ${LAYOUT.footer ? `<footer class="site-footer" data-block="footer">
   <div class="wrap">
     <p>&copy; ${BUILD_TIME.getFullYear()} ${esc(site.author)} · 自制引擎驱动 · <a href="/atom.xml">RSS</a></p>
+    <p class="busuanzi-line">本站总访问量 <span id="busuanzi_value_site_pv">…</span> 次 · 访客数 <span id="busuanzi_value_site_uv">…</span> 人</p>
     <p><a href="https://github.com/${esc(site.github || site.author)}" target="_blank" rel="noopener">GitHub</a> · <a href="/guide/">帮助</a> · <a href="/admin/">✍️ 写作</a></p>
   </div>
 </footer>` : ''}
+<script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 <button id="backtop" title="回到顶部">&uarr;</button>
 <script>
 var bt=document.getElementById('backtop');
@@ -283,7 +315,7 @@ document.querySelectorAll('.post-item').forEach(function(item){
 </script>
 <script>
 (function(){
-  var ACC={default:'#0d7377',blue:'#2563eb',violet:'#7c3aed',rose:'#e11d48',amber:'#d97706',green:'#16a34a'};
+  var ACC={default:'#2e80dd',blue:'#0d7377',violet:'#7c3aed',rose:'#e11d48',amber:'#d97706',green:'#16a34a'};
   var WIDTH={s:'680px',m:'768px',l:'920px'},FONT={s:'15.5px',m:'16.5px',l:'18px'};
   var P={theme:'auto',accent:'default',width:'m',font:'m',face:'auto'};
   var FACE={serif:'"Noto Serif SC","Source Han Serif SC",Georgia,"STSong","SimSun",serif',kai:'"KaiTi","STKaiti","楷体","DFKai-SB",serif',hei:'"Microsoft YaHei","PingFang SC","SimHei",sans-serif'};
@@ -341,9 +373,9 @@ document.querySelectorAll('.post-item').forEach(function(item){
 
 function postItem(p, withExcerpt) {
   const cover = p.cover ? `<a class="post-cover" href="${p.permalink}"><img src="${esc(p.cover)}" alt="${esc(p.title)}" loading="lazy"></a>` : '';
-  return `<article class="post-item${p.sticky ? ' pinned' : ''}">
+  return `<article class="post-item${p.sticky ? ' pinned' : ''}${p.cover ? ' has-cover' : ''}">
   ${cover}
-  <div class="post-date">${p.dateStr}</div>
+  <div class="post-date">${p.dateStr}${p.updated && p.updated !== p.dateStr ? ' · 更新 ' + p.updated : ''}</div>
   <div class="post-main">
     <h2 class="post-title"><a href="${p.permalink}">${esc(p.title)}</a>${p.sticky ? '<span class="pin-badge">置顶</span>' : ''}</h2>
     ${withExcerpt ? `<p class="post-excerpt">${esc(p.excerpt)} <a class="readmore" href="${p.permalink}">阅读全文 &rarr;</a></p>` : ''}
@@ -374,6 +406,7 @@ function build() {
   <div class="hero-blob b1"></div><div class="hero-blob b2"></div>
   <h1 class="hero-title">${esc(site.title)}</h1>
   <p class="hero-sub">${esc(site.subtitle)} —— ${esc(site.description)}</p>
+  <div class="hero-cta"><a class="cta-main" href="#posts">开始阅读</a><a class="cta-sub" href="/about/">关于我</a></div>
   <div class="hero-social">
     <a href="https://github.com/${esc(site.github || site.author)}" target="_blank" rel="noopener">GitHub</a>
     <a href="/atom.xml">RSS</a>
@@ -382,7 +415,7 @@ function build() {
   </div>
   <p class="hero-meta">${posts.length} 篇文章<span class="dot"></span>${Object.keys(tagCount).length} 个标签<span class="dot"></span>持续更新中</p>
 </section>` : '';
-  const postsHtml = `<section class="${listCls.trim()}" data-block="posts">${posts.map(p => postItem(p, true)).join('\n')}</section>`;
+  const postsHtml = `<section class="${listCls.trim()}" data-block="posts" id="posts">${posts.map(p => postItem(p, true)).join('\n')}</section>`;
   const mainBody = (LAYOUT.mainBlocks || ['hero', 'posts'])
     .map(b => (b === 'hero' ? heroHtml : postsHtml)).filter(Boolean).join('\n');
   writeFile('index.html', layout({
@@ -391,6 +424,13 @@ function build() {
     path: '/',
     body: mainBody
   }));
+
+  // 相关文章：按标签重合度推荐 2 篇
+  posts.forEach(p => {
+    p.related = posts.filter(o => o !== p && o.tags.some(t => p.tags.includes(t)))
+      .sort((a, b) => b.tags.filter(t => p.tags.includes(t)).length - a.tags.filter(t => p.tags.includes(t)).length || b.date - a.date)
+      .slice(0, 2);
+  });
 
   // 文章页（含上一篇/下一篇、阅读时长、进度条）
   posts.forEach((p, idx) => {
@@ -410,8 +450,11 @@ function build() {
     <h1>${esc(p.title)}${p.sticky ? '<span class="pin-badge">置顶</span>' : ''}</h1>
     <div class="post-meta-line"><time>${p.dateStr}</time>${p.category ? ` · ${esc(p.category)}` : ''}${LAYOUT.readingTime ? ` · 约 ${p.readingTime} 分钟` : ''}${p.tags.map(t => ` · <a class="tag" href="/tags/${encodeURIComponent(t)}/">#${esc(t)}</a>`).join('')}</div>
   </header>
-  ${buildToc(p.fullHtml)}<div class="post-body">${p.fullHtml}</div>
+  ${buildToc(p.fullHtml)}${tocFloat(p.fullHtml)}<div class="post-body">${p.fullHtml}</div>
   ${nav.length ? `<nav class="post-nav">${nav.join('')}</nav>` : ''}
+  <div class="post-license">本文采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> 许可，转载请注明出处：<a href="${site.url}${p.permalink}">${site.url}${p.permalink}</a></div>
+  ${p.related && p.related.length ? `<section class="related"><h2>相关文章</h2><div class="related-grid">${p.related.map(r => `<a class="related-card" href="${r.permalink}"><strong>${esc(r.title)}</strong><small>${r.dateStr} · ${esc(r.category || '未分类')}</small></a>`).join('')}</div></section>` : ''}
+  ${GISCUS_HTML}
 </article>`
     }));
   });
@@ -476,6 +519,9 @@ ${posts.map(p => `  <entry>
   </entry>`).join('\n')}
 </feed>`;
   writeFile('atom.xml', feed);
+
+  // 站内搜索数据
+  writeFile('search-data.json', JSON.stringify(posts.map(p => ({ t: p.title, u: p.permalink, d: p.dateStr, x: stripTags(p.fullHtml).replace(/\s+/g, ' ').slice(0, 400) }))) );
 
   // sitemap.xml
   const urls = [ '/', '/archives/', '/tags/', '/about/', '/404.html',

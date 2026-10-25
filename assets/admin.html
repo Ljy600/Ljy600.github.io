@@ -134,6 +134,7 @@
           <input type="text" id="f-title" placeholder="文章标题">
           <input type="text" id="f-slug" placeholder="文件名（英文/拼音，如 my-first-post）">
           <input type="text" id="f-date" placeholder="2026-10-24 12:00:00">
+          <input type="text" id="f-updated" placeholder="更新日期（可选）">
         </div>
       </div>
       <div>
@@ -288,7 +289,7 @@
     try {
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
         current, at: Date.now(),
-        f: { title: $('f-title').value, slug: $('f-slug').value, date: $('f-date').value, cats: $('f-cats').value, tags: $('f-tags').value, cover: $('f-cover').value, sticky: $('f-sticky').checked, draft: $('f-draft').checked },
+        f: { title: $('f-title').value, slug: $('f-slug').value, date: $('f-date').value, updated: $('f-updated').value, cats: $('f-cats').value, tags: $('f-tags').value, cover: $('f-cover').value, sticky: $('f-sticky').checked, draft: $('f-draft').checked },
         body: $('body').value
       }));
     } catch (e) {}
@@ -302,6 +303,7 @@
       current = d.current;
       $('f-title').value = d.f.title; $('f-slug').value = d.f.slug; $('f-date').value = d.f.date;
       $('f-cats').value = d.f.cats; $('f-tags').value = d.f.tags; $('f-cover').value = d.f.cover || '';
+      $('f-updated').value = d.f.updated || '';
       $('f-sticky').checked = d.f.sticky; $('f-draft').checked = d.f.draft;
       $('body').value = d.body; dirty = true;
       status('已恢复未保存的内容，记得保存', 'ok');
@@ -498,6 +500,7 @@
       'title: ' + ($('f-title').value.trim() || $('f-slug').value.trim()),
       'date: ' + ($('f-date').value.trim() || fmtDateTime(new Date())),
       $('f-cover').value.trim() ? 'cover: ' + $('f-cover').value.trim() : '',
+      $('f-updated').value.trim() ? 'updated: ' + $('f-updated').value.trim() : '',
       $('f-cats').value.trim() ? 'categories: ' + $('f-cats').value.trim() : '',
       tags ? 'tags: [' + tags + ']' : '',
       $('f-sticky').checked ? 'sticky: true' : '',
@@ -565,6 +568,7 @@
     $('f-date').value = data.date || '';
     $('f-cats').value = data.categories || '';
     $('f-cover').value = data.cover || '';
+    $('f-updated').value = data.updated || '';
     $('f-tags').value = (data.tags || '').replace(/^\[|\]$/g, '');
     $('f-sticky').checked = data.sticky === 'true' || data.top === 'true';
     $('f-draft').checked = data.draft === 'true';
@@ -578,7 +582,7 @@
   function newPost() {
     if (dirty && !confirm('当前文章还没保存，放弃修改？')) return;
     current = null; currentSha = null;
-    ['f-title', 'f-slug', 'f-cats', 'f-tags', 'f-cover'].forEach(id => $(id).value = '');
+    ['f-title', 'f-slug', 'f-cats', 'f-tags', 'f-cover', 'f-updated'].forEach(id => $(id).value = '');
     const n = new Date(), p = x => String(x).padStart(2, '0');
     $('f-date').value = `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}:00`;
     $('f-draft').checked = false;
@@ -600,7 +604,7 @@
     if (LOCAL) {
       const r = await fetch('/api/save', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: slug, title: $('f-title').value.trim(), date: $('f-date').value.trim(), cover: $('f-cover').value.trim(), categories: $('f-cats').value.trim(), tags: $('f-tags').value.trim(), sticky: $('f-sticky').checked, draft: $('f-draft').checked, body: $('body').value })
+        body: JSON.stringify({ file: slug, title: $('f-title').value.trim(), date: $('f-date').value.trim(), updated: $('f-updated').value.trim(), cover: $('f-cover').value.trim(), categories: $('f-cats').value.trim(), tags: $('f-tags').value.trim(), sticky: $('f-sticky').checked, draft: $('f-draft').checked, body: $('body').value })
       });
       const j = await r.json();
       if (!j.ok) { status('保存失败：' + j.error, 'err'); return; }
@@ -745,7 +749,7 @@ $('token-save').onclick = async () => {
 
   /* ================= 事件绑定 ================= */
   $('body').addEventListener('input', () => { dirty = true; updateWC(); clearTimeout(previewTimer); previewTimer = setTimeout(renderPreview, 800); });
-  ['f-title', 'f-slug', 'f-date', 'f-cats', 'f-tags', 'f-cover'].forEach(id => $(id).addEventListener('input', () => dirty = true));
+  ['f-title', 'f-slug', 'f-date', 'f-updated', 'f-cats', 'f-tags', 'f-cover'].forEach(id => $(id).addEventListener('input', () => dirty = true));
   $('f-draft').addEventListener('change', () => dirty = true);
   $('btn-new').onclick = newPost;
   $('btn-save').onclick = save;

@@ -8,22 +8,6 @@
     {
       "label": "首页",
       "href": "/"
-    },
-    {
-      "label": "归档",
-      "href": "/archives/"
-    },
-    {
-      "label": "标签",
-      "href": "/tags/"
-    },
-    {
-      "label": "关于",
-      "href": "/about/"
-    },
-    {
-      "label": "友情链接",
-      "href": "/links/"
     }
   ],
   "layout": {
@@ -40,7 +24,7 @@
     "sidebar": [
       "latest",
       "tags",
-      "archive"
+      "about"
     ]
   },
   "theme": {
@@ -52,5 +36,13 @@
     "heroImage": "/assets/hero-bg.svg"
   },
   "postsPerPage": 0,
-  "github": "Ljy600"
+  "github": "Ljy600",
+  "comments": {
+    "giscus": {
+      "repo": "Ljy600/Ljy600.github.io",
+      "repoId": "",
+      "category": "Announcements",
+      "categoryId": ""
+    }
+  }
 }
