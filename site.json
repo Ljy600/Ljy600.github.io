@@ -40,12 +40,12 @@
   "comments": {
     "giscus": {
       "repo": "Ljy600/Ljy600.github.io",
-      "repoId": "",
+      "repoId": "R_kgDOVVZ1Dg",
       "category": "Announcements",
-      "categoryId": ""
+      "categoryId": "DIC_kwDOVVZ1Ds4DJkmx"
     }
   },
-  "closed": true,
+  "closed": false,
   "closeNotice": "目前未完成，施工中……",
   "closeUntil": "",
   "adminPasswordHash": "21b3d01610c38ad88c4bcbc46ef91db6935b5232ca16cbfdcd0ee5f6a6248c18"
