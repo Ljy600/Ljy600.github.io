@@ -631,6 +631,20 @@ body.locked > *:not(.gate) { display: none !important; }
 /* ---------- 评论登录引导 ---------- */
 .comments-login-tip { font-size: 13.5px; color: var(--text-light); background: var(--accent-weak); border-radius: 10px; padding: 10px 16px; margin-bottom: 14px; line-height: 1.8; }
 .comments-login-tip a { font-weight: 600; }
+
+/* ---------- 专栏 ---------- */
+.column-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+.column-card {
+  display: block; border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  background: var(--bg-card); box-shadow: var(--shadow); padding: 0 0 16px;
+  color: var(--text); transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.column-card:hover { text-decoration: none; transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow-lg); }
+.column-cover { width: 100%; aspect-ratio: 21 / 9; object-fit: cover; display: block; }
+.column-card h2 { margin: 16px 20px 8px; font-size: 19px; font-family: var(--serif); }
+.column-card p { margin: 0 20px 10px; font-size: 13.5px; color: var(--text-light); line-height: 1.7; }
+.column-card small { margin: 0 20px; color: var(--accent); font-size: 12.5px; }
+.column-desc { color: var(--text-light); font-size: 15px; margin: 0 0 22px; }
 /* ---------- 移动端 ---------- */
 @media (max-width: 900px) {
   .page-grid { grid-template-columns: 1fr; }

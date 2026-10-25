@@ -49,7 +49,7 @@
       "categoryId": "DIC_kwDOVVZ1Ds4DJkmx"
     }
   },
-  "closed": false,
+  "closed": true,
   "closeNotice": "目前未完成，施工中……",
   "closeUntil": "",
   "adminPasswordHash": "5df327132abbcc5789b03da4b6f50512e1c522c27ef799a11fb73848c704f1b0"

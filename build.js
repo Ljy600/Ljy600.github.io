@@ -292,7 +292,7 @@ ${LAYOUT.footer ? `<footer class="site-footer" data-block="footer">
   <div class="wrap">
     <p>&copy; ${BUILD_TIME.getFullYear()} ${esc(site.author)} · 自制引擎驱动 · <a href="/atom.xml">RSS</a></p>
     <p class="busuanzi-line">本站总访问量 <span id="busuanzi_value_site_pv">…</span> 次 · 访客数 <span id="busuanzi_value_site_uv">…</span> 人</p>
-    <p><a href="https://github.com/${esc(site.github || site.author)}" target="_blank" rel="noopener">GitHub</a> · <a href="/guide/">帮助</a> · <a href="/admin/">✍️ 写作</a></p>
+    <p><a href="https://github.com/${esc(site.github || site.author)}" target="_blank" rel="noopener">GitHub</a></p>
   </div>
 </footer>` : ''}
 <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
@@ -399,7 +399,6 @@ function build() {
   <h1>站点维护中</h1>
   <p class="closed-notice">${esc(notice)}</p>
   ${site.closeUntil ? `<p class="closed-until">预计恢复时间：${esc(site.closeUntil)}</p>` : ''}
-  <p class="closed-hint">站长请从 <a href="/admin/">写作后台</a> 解除封站</p>
 </div>`;
     const page = layout({
       title: `站点维护中 | ${site.title}`,
@@ -515,6 +514,26 @@ function build() {
     }));
   }
 
+  // 专栏：按分类聚合文章（描述在 site.json 的 columns 里配置）
+  const catPosts = {};
+  posts.forEach(p => { const c = p.category || '未分类'; (catPosts[c] = catPosts[c] || []).push(p); });
+  const colDefs = (site.columns || []).filter(c => catPosts[c.category] && catPosts[c.category].length);
+  writeFile('columns/index.html', layout({
+    title: `专栏 | ${site.title}`, path: '/columns/',
+    body: `<h1 class="page-title">专栏</h1>${colDefs.length ? `<div class="column-grid">${colDefs.map(c => {
+      const list = catPosts[c.category] || [];
+      const cover = list.find(p => p.cover);
+      return `<a class="column-card" href="/columns/${encodeURIComponent(c.category)}/">${cover ? `<img class="column-cover" src="${esc(cover.cover)}" alt="" loading="lazy">` : ''}<h2>${esc(c.name)}</h2><p>${esc(c.desc || '')}</p><small>${list.length} 篇文章</small></a>`;
+    }).join('')}</div>` : '<p>暂无专栏。</p>'}`
+  }));
+  for (const c of colDefs) {
+    const list = catPosts[c.category] || [];
+    writeFile(`columns/${c.category}/index.html`, layout({
+      title: `${c.name} | ${site.title}`, path: '/columns/',
+      body: `<h1 class="page-title">${esc(c.name)}</h1><p class="column-desc">${esc(c.desc || '')} · 共 ${list.length} 篇</p><section class="post-list">${list.map(p => postItem(p, true)).join('\n')}</section>`
+    }));
+  }
+
   // 独立页面（关于等）
   pages.forEach(pg => {
     const isAbout = pg.slug === 'about';
@@ -571,17 +590,6 @@ ${posts.map(p => `  <entry>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${site.url}${encodeURI(u)}</loc></url>`).join('\n')}
 </urlset>`);
-
-  // 内置帮助页：渲染 docs/使用文档.md → /guide/
-  const guidePath = path.join(ROOT, 'docs', '使用文档.md');
-  if (fs.existsSync(guidePath)) {
-    const guideRaw = fs.readFileSync(guidePath, 'utf8');
-    writeFile('guide/index.html', layout({
-      title: `使用文档 | ${site.title}`,
-      path: '/guide/',
-      body: `<article class="post-full"><div class="post-body">${renderMarkdown(guideRaw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ''))}</div></article>`
-    }));
-  }
 
   // robots.txt、.nojekyll、静态资源
   writeFile('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${site.url}/sitemap.xml\n`);
