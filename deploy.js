@@ -54,7 +54,7 @@ if (ok('git diff --cached --quiet') && !unpushed) {
       const p = path.join(ROOT, f);
       if (fs.existsSync(p) && fs.statSync(p).isFile()) backup[f] = fs.readFileSync(p);
     }
-    const rebased = ok('git rebase origin/main');
+    const rebased = ok('git rebase -X ours origin/main'); // 冲突时本地优先（配合防丢文件保护）
     let restored = 0;
     for (const [f, buf] of Object.entries(backup)) {
       const p = path.join(ROOT, f);
