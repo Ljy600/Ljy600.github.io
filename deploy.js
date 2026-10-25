@@ -35,7 +35,7 @@ const unpushed = out('git rev-list origin/main..HEAD');
 if (ok('git diff --cached --quiet') && !unpushed) {
   console.log('源码无变化，无需推送。');
 } else {
-  sh(`git commit -m "更新：${stamp}"`);
+  if (!ok('git diff --cached --quiet')) sh(`git commit -m "更新：${stamp}"`);
 
   // 3. 与远端同步（兼容在网页端编辑产生的提交）
   sh('git fetch origin main');
