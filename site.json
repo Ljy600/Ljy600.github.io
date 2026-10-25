@@ -44,5 +44,8 @@
       "category": "Announcements",
       "categoryId": ""
     }
-  }
+  },
+  "closed": false,
+  "closeNotice": "系统升级中，预计一小时内恢复。",
+  "closeUntil": "今晚 22:00"
 }

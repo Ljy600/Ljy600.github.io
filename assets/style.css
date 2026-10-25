@@ -590,6 +590,14 @@ body.decorating [data-block].dz-removed *:not(.dz-chip) { visibility: hidden; }
 .hero-cta .cta-main:hover { transform: translateY(-2px); text-decoration: none; }
 .hero-cta .cta-sub { border: 1px solid rgba(255,255,255,.45); color: #f4f9f8 !important; -webkit-text-fill-color: #f4f9f8; }
 .hero-cta .cta-sub:hover { background: rgba(255,255,255,.15); text-decoration: none; }
+
+/* ---------- 封站（维护模式）页 ---------- */
+.closed-page { text-align: center; padding: 90px 0 70px; }
+.closed-icon { font-size: 64px; margin-bottom: 10px; }
+.closed-page h1 { font-family: var(--serif); font-size: 34px; margin: 0 0 16px; }
+.closed-notice { font-size: 17px; color: var(--text-light); background: var(--accent-weak); display: inline-block; padding: 14px 30px; border-radius: 12px; line-height: 1.9; }
+.closed-until { margin: 16px 0 0; color: var(--accent); font-size: 15px; font-weight: 600; }
+.closed-hint { margin: 30px 0 0; font-size: 13px; color: var(--text-light); opacity: .7; }
 /* ---------- 移动端 ---------- */
 @media (max-width: 900px) {
   .page-grid { grid-template-columns: 1fr; }

@@ -163,6 +163,20 @@
 
     <!-- 导航 + 页面 -->
     <div class="card">
+      <h2>站点状态</h2>
+      <p class="hint">封站后所有页面只显示维护公告；写作后台仍可访问，随时可解除</p>
+      <div class="lay-row">
+        <label>封站（维护模式）</label>
+        <span class="switch"><input type="checkbox" id="lay-closed"><i></i></span>
+      </div>
+      <div id="closed-extra" class="hidden">
+        <span class="label">维护公告（访客看到的文字）</span>
+        <textarea id="close-notice" rows="2" placeholder="博客维护中，马上回来。" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;resize:vertical"></textarea>
+        <span class="label" style="margin-top:8px">预计恢复时间（可选）</span>
+        <input type="text" id="close-until" placeholder="如：今晚 22:00" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit">
+      </div>
+    </div>
+    <div class="card">
       <h2>导航菜单</h2>
       <p class="hint">上/下调整顺序，可添加自定义链接（如外部链接或页面）</p>
       <div id="nav-list"></div>
@@ -353,6 +367,10 @@
     $('lay-hero').checked = L.hero !== false;
     $('lay-footer').checked = L.footer !== false;
     $('lay-reading').checked = L.readingTime !== false;
+    $('lay-closed').checked = !!siteConfig.closed;
+    $('close-notice').value = siteConfig.closeNotice || '';
+    $('close-until').value = siteConfig.closeUntil || '';
+    document.getElementById('closed-extra').classList.toggle('hidden', !siteConfig.closed);
   }
   function collectLayout() {
     return {
@@ -510,6 +528,9 @@
     siteConfig.layout = collectLayout();
     siteConfig.layout.mainBlocks = mainBlocks;
     siteConfig.layout.sidebar = sideBlocks;
+    siteConfig.closed = $('lay-closed').checked;
+    siteConfig.closeNotice = $('close-notice').value.trim() || '博客维护中，马上回来。';
+    siteConfig.closeUntil = $('close-until').value.trim();
     const json = JSON.stringify(siteConfig, null, 2);
     try {
       if (LOCAL) {
@@ -561,6 +582,8 @@
       e.target.classList.add('active');
     });
   });
+
+  $('lay-closed').addEventListener('change', () => { document.getElementById('closed-extra').classList.toggle('hidden', !$('lay-closed').checked); });
 
   /* ---------- 启动 ---------- */
   (async () => {

@@ -391,6 +391,36 @@ function build() {
   fs.rmSync(DIST, { recursive: true, force: true });
   ensureDir(DIST);
 
+  // 封站（维护模式）：全站只渲染维护公告页，写作后台仍可访问
+  if (site.closed) {
+    const notice = site.closeNotice || '博客维护中，马上回来。';
+    const closeBody = `<div class="closed-page">
+  <div class="closed-icon">🚧</div>
+  <h1>站点维护中</h1>
+  <p class="closed-notice">${esc(notice)}</p>
+  ${site.closeUntil ? `<p class="closed-until">预计恢复时间：${esc(site.closeUntil)}</p>` : ''}
+  <p class="closed-hint">站长请从 <a href="/admin/">写作后台</a> 解除封站</p>
+</div>`;
+    const page = layout({
+      title: `站点维护中 | ${site.title}`,
+      desc: notice,
+      body: closeBody,
+      path: "/x"
+    });
+    ['index.html', 'archives/index.html', 'tags/index.html', 'about/index.html', 'links/index.html', '404.html', 'guide/index.html'].forEach(f => writeFile(f, page));
+    writeFile('search-data.json', '[]');
+    writeFile('robots.txt', 'User-agent: *' + '\n' + 'Disallow: /' + '\n');
+    writeFile('sitemap.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>');
+    writeFile('atom.xml', '<?xml version="1.0" encoding="UTF-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom"><title>' + esc(site.title) + '（维护中）</title></feed>');
+    fs.cpSync(path.join(ROOT, 'assets'), path.join(DIST, 'assets'), { recursive: true });
+    ensureDir(path.join(DIST, 'admin', 'layout'));
+    fs.copyFileSync(path.join(DIST, 'assets', 'admin.html'), path.join(DIST, 'admin', 'index.html'));
+    fs.copyFileSync(path.join(DIST, 'assets', 'layout.html'), path.join(DIST, 'admin', 'layout', 'index.html'));
+    fs.copyFileSync(path.join(ROOT, 'markdown.js'), path.join(DIST, 'assets', 'markdown.js'));
+    writeFile('.nojekyll', '');
+    console.log('封站模式：全站已切换为维护公告页（写作后台不受影响）');
+    return;
+  }
   const posts = loadPosts();
   const pages = loadPages();
 
